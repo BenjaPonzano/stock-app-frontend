@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elaboraciones - Stock Gastronómico</title>
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo"><span>🍽️</span> StockGastro</div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <a href="index.html" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+
+    <div class="nav-section">Inventario</div>
+    <a href="ingrediente.html" class="nav-item"><span class="icon">📦</span> Productos e Ingredientes</a>
+    <a href="mercaderia.html" class="nav-item"><span class="icon">🛒</span> Ingreso de Mercadería</a>
+
+    <div class="nav-section">Operaciones</div>
+    <a href="ventas.html" class="nav-item"><span class="icon">💰</span> Ventas</a>
+    <a href="receta.html" class="nav-item active"><span class="icon">👨‍🍳</span> Elaboraciones</a>
+
+    <div class="nav-section">Administración</div>
+    <a href="usuarios.html" class="nav-item"><span class="icon">👥</span> Usuarios</a>
+    <a href="sucursales.html" class="nav-item"><span class="icon">🏪</span> Sucursales</a>
+    <a href="reportes.html" class="nav-item"><span class="icon">📈</span> Reportes</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar">JG</div>
+      <div><div style="color:#fff;font-size:.85rem">Juan García</div><div>Administrador</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>👨‍🍳 Elaboraciones Internas</h1>
+    <div class="sucursal-badge" onclick="cycleSucursal()">🏪 <span id="sucursalLabel">Sucursal Centro</span> ▾</div>
+  </div>
+  <div class="content">
+
+    <div class="stats" id="statsArea"></div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-header"><h2>📋 Nueva Elaboración</h2></div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label>1. Seleccioná la receta / preparación</label>
+            <div id="recetasList"></div>
+          </div>
+          <hr class="divider">
+          <div class="form-row">
+            <div class="form-group">
+              <label>2. Cantidad a elaborar</label>
+              <input class="form-control" id="f_cantidad" type="number" min="1" value="1" oninput="updateConsumo()">
+            </div>
+            <div class="form-group">
+              <label>Fecha y hora</label>
+              <input class="form-control" id="f_fecha" type="datetime-local">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>3. Ingredientes que se consumirán</label>
+            <div class="items-list">
+              <table>
+                <thead><tr><th>Ingrediente</th><th>Stock actual</th><th>A consumir</th><th>Stock final</th></tr></thead>
+                <tbody id="consumoBody"><tr><td colspan="4"><div class="empty-items">Seleccioná una receta primero</div></td></tr></tbody>
+              </table>
+            </div>
+            <div class="stock-warning" id="stockWarning">⚠️ <span id="stockWarningMsg"></span></div>
+          </div>
+
+          <div class="form-group">
+            <label>4. Producto generado</label>
+            <div id="productoGenerado" style="background:var(--bg);border-radius:8px;padding:12px;font-size:.88rem;color:var(--muted);border:1px solid var(--border)">
+              Seleccioná una receta para ver el producto resultante
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Observaciones</label>
+            <textarea class="form-control" id="f_obs" rows="2" placeholder="Notas opcionales..."></textarea>
+          </div>
+
+          <button class="btn btn-success btn-full" onclick="registrarElab()">✅ Registrar Elaboración</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>🕓 Historial</h2></div>
+        <div class="hist-filters">
+          <input class="search-sm" id="histSearch" placeholder="🔍 Buscar receta..." oninput="renderHistory()">
+        </div>
+        <div class="hist-filters" style="padding-top:0">
+          <select class="filter-select" id="histReceta" onchange="renderHistory()">
+            <option value="">Todas las recetas</option>
+          </select>
+          <input type="date" class="filter-select" id="histMes" onchange="renderHistory()">
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div class="modal-meta" id="modalMeta"></div>
+    <div class="section-title">Ingredientes consumidos</div>
+    <table class="detail-table">
+      <thead><tr><th>Ingrediente</th><th>Cantidad consumida</th></tr></thead>
+      <tbody id="modalIngBody"></tbody>
+    </table>
+    <div class="section-title">Producto generado</div>
+    <table class="detail-table">
+      <thead><tr><th>Producto</th><th>Cantidad producida</th></tr></thead>
+      <tbody id="modalProdBody"></tbody>
+    </table>
+    <div id="modalObs" style="margin-top:12px;font-size:.82rem;color:var(--muted);"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/receta.js"></script>
+</body>
+</html>

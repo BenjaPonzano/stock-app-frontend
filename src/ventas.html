@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ventas</title>
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo"><span>🍽️</span> StockGastro</div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <a href="index.html" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+
+    <div class="nav-section">Inventario</div>
+    <a href="ingrediente.html" class="nav-item"><span class="icon">📦</span> Productos e Ingredientes</a>
+    <a href="mercaderia.html" class="nav-item"><span class="icon">🛒</span> Ingreso de Mercadería</a>
+
+    <div class="nav-section">Operaciones</div>
+    <a href="ventas.html" class="nav-item active"><span class="icon">💰</span> Ventas</a>
+    <a href="receta.html" class="nav-item"><span class="icon">👨‍🍳</span> Elaboraciones</a>
+
+    <div class="nav-section">Administración</div>
+    <a href="usuarios.html" class="nav-item"><span class="icon">👥</span> Usuarios</a>
+    <a href="sucursales.html" class="nav-item"><span class="icon">🏪</span> Sucursales</a>
+    <a href="reportes.html" class="nav-item"><span class="icon">📈</span> Reportes</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar">JG</div>
+      <div><div style="color:#fff;font-size:.85rem">Juan García</div><div>Administrador</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>💰 Ventas</h1>
+    <div class="sucursal-badge" onclick="cycleSucursal()">🏪 <span id="sucursalLabel">Sucursal Centro</span> ▾</div>
+  </div>
+  <div class="content">
+    <div class="stats" id="statsArea"></div>
+    <div class="layout">
+
+      <div>
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-header"><h2>🛍️ Seleccioná productos</h2></div>
+          <div class="catalogo-search"><input id="prodSearch" placeholder="🔍 Buscar producto..." oninput="renderCatalogo()"></div>
+          <div class="catalogo-cats" id="catChips"></div>
+          <div class="catalogo-grid" id="catalogoGrid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>🧾 Ticket actual</h2>
+            <button class="btn btn-ghost" style="font-size:.8rem;padding:5px 10px" onclick="limpiarCarrito()">🗑 Limpiar</button>
+          </div>
+          <div class="panel-body">
+            <div class="cart-list">
+              <table class="cart-table">
+                <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Sub.</th><th></th></tr></thead>
+                <tbody id="cartBody"><tr><td colspan="5"><div class="empty-cart">Agregá productos desde el catálogo</div></td></tr></tbody>
+              </table>
+            </div>
+
+            <div class="descuento-row">
+              <label>Descuento:</label>
+              <input type="number" id="descuento" min="0" max="100" value="0" oninput="updateTotal()"> %
+              <span id="descuentoMonto"></span>
+            </div>
+
+            <div class="cart-total">
+              <span>Total a cobrar</span>
+              <strong id="totalLabel">$0</strong>
+            </div>
+
+            <div class="form-group"><label>Método de pago</label></div>
+            <div class="pago-row">
+              <div class="pago-btn selected" id="p_ef" onclick="selectPago('ef')"><span class="pago-icon">💵</span>Efectivo</div>
+              <div class="pago-btn" id="p_mp" onclick="selectPago('mp')"><span class="pago-icon">📱</span>Mercado Pago</div>
+              <div class="pago-btn" id="p_td" onclick="selectPago('td')"><span class="pago-icon">💳</span>Tarjeta Déb.</div>
+              <div class="pago-btn" id="p_tc" onclick="selectPago('tc')"><span class="pago-icon">💳</span>Tarjeta Cré.</div>
+            </div>
+
+            <div id="vueltoRow" style="display:flex;align-items:center;gap:8px;margin-top:6px;margin-bottom:4px">
+              <label style="font-size:.82rem;color:var(--muted);white-space:nowrap">Con cuánto paga:</label>
+              <input class="form-control" type="number" id="f_conCuanto" style="max-width:120px;padding:6px 10px" oninput="calcVuelto()" placeholder="$0">
+              <span id="vueltoLabel" style="font-size:.85rem;color:var(--success);font-weight:600"></span>
+            </div>
+
+            <button class="btn btn-success btn-full" onclick="registrarVenta()">✅ Confirmar Venta</button>
+
+            <div class="ticket-box" id="ticketBox"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>🕓 Historial de Ventas</h2></div>
+        <div class="hist-filters">
+          <input class="search-sm" id="histSearch" placeholder="🔍 Buscar..." oninput="renderHistory()">
+        </div>
+        <div class="hist-filters" style="padding-top:0">
+          <select class="filter-select" id="histPago" onchange="renderHistory()">
+            <option value="">Todos los pagos</option>
+            <option value="ef">Efectivo</option>
+            <option value="mp">Mercado Pago</option>
+            <option value="td">Tarjeta Déb.</option>
+            <option value="tc">Tarjeta Cré.</option>
+          </select>
+          <select class="filter-select" id="histMes" onchange="renderHistory()">
+            <option value="">Todo el período</option>
+            <option value="2025-05">Mayo 2025</option>
+            <option value="2025-04">Abril 2025</option>
+          </select>
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div class="modal-meta" id="modalMeta"></div>
+    <table class="detail-table">
+      <thead><tr><th>Producto</th><th>Cant.</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
+      <tbody id="modalBody"></tbody>
+    </table>
+    <div class="modal-total-box">
+      <div>
+        <div style="font-size:.78rem;color:var(--muted)">Descuento</div>
+        <div id="modalDescuento" style="font-size:.88rem"></div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.78rem;color:var(--muted)">Total cobrado</div>
+        <div id="modalTotal" style="font-size:1.2rem;font-weight:700;color:var(--success)"></div>
+      </div>
+    </div>
+    <div id="modalObs" style="margin-top:10px;font-size:.82rem;color:var(--muted)"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/ventas.js"></script>
+</body>
+</html>

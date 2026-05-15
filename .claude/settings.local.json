@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\Users\\\\Diego\\\\Documents\\\\DSW\\\\TP\\\\TP-frontend-dsw-2025\")"
+    ]
+  }
+}

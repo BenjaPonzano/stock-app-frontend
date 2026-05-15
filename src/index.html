@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - Stock Gastronómico</title>
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo"><span>🍽️</span> StockGastro</div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <a href="index.html" class="nav-item active"><span class="icon">📊</span> Dashboard</a>
+
+    <div class="nav-section">Inventario</div>
+    <a href="ingrediente.html" class="nav-item"><span class="icon">📦</span> Productos e Ingredientes</a>
+    <a href="mercaderia.html" class="nav-item"><span class="icon">🛒</span> Ingreso de Mercadería</a>
+
+    <div class="nav-section">Operaciones</div>
+    <a href="ventas.html" class="nav-item"><span class="icon">💰</span> Ventas</a>
+    <a href="receta.html" class="nav-item"><span class="icon">👨‍🍳</span> Elaboraciones</a>
+
+    <div class="nav-section">Administración</div>
+    <a href="usuarios.html" class="nav-item"><span class="icon">👥</span> Usuarios</a>
+    <a href="sucursales.html" class="nav-item"><span class="icon">🏪</span> Sucursales</a>
+    <a href="reportes.html" class="nav-item"><span class="icon">📈</span> Reportes</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar">JG</div>
+      <div><div style="color:#fff;font-size:.85rem">Juan García</div><div>Administrador</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>📊 Panel General</h1>
+    <div class="sucursal-badge" onclick="cargarDatosDashboard()">🔄 Actualizar</div>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#eaf2ff; color:#2980b9;">💰</div>
+        <div class="stat-info">
+          <div class="stat-label">Ventas Hoy</div>
+          <div class="stat-value" id="stVentasHoy">$0</div>
+          <div class="stat-sub" id="stVentasSub">Cargando...</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#d5f5e3; color:#27ae60;">🧾</div>
+        <div class="stat-info">
+          <div class="stat-label">Órdenes Hoy</div>
+          <div class="stat-value" id="stOrdenes">0</div>
+          <div class="stat-sub">Tickets emitidos</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#fef9e7; color:#f39c12;">🛒</div>
+        <div class="stat-info">
+          <div class="stat-label">Compras (Mes)</div>
+          <div class="stat-value" id="stCompras">$0</div>
+          <div class="stat-sub">Inversión a proveedores</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:#fadbd8; color:#c0392b;">⚠️</div>
+        <div class="stat-info">
+          <div class="stat-label">Alertas Stock</div>
+          <div class="stat-value" id="stAlertas">0</div>
+          <div class="stat-sub">Artículos por reponer</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-layout">
+      <div>
+        <div class="panel">
+          <div class="panel-header"><h2>📈 Ventas (Últimos 7 días)</h2></div>
+          <div class="panel-body">
+            <div class="chart-area" id="chartVentas">
+              <div class="empty-state" style="width:100%">Cargando gráfico...</div>
+            </div>
+            <div style="padding-bottom: 20px;"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>⭐ Productos Más Vendidos</h2></div>
+          <div class="panel-body">
+            <div class="top-list" id="topProductos">
+              <div class="empty-state">Cargando ranking...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="panel-header"><h2>⚠️ Stock Crítico</h2></div>
+          <div class="panel-body">
+            <div class="alert-list" id="listaAlertas">
+              <div class="empty-state">Cargando alertas...</div>
+            </div>
+            <a href="ingrediente.html" style="display:block; width: 100%; text-align:center; margin-top: 16px; padding: 10px; border: 1px solid var(--border); background: var(--bg); border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 600; text-decoration: none;">Ver todo el inventario</a>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h2>🔄 Actividad Reciente</h2></div>
+          <div class="panel-body">
+            <div class="activity-list" id="listaActividad">
+              <div class="empty-state">Cargando actividad...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/utils.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>

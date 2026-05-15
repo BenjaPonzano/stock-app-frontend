@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingreso de Mercadería - Stock Gastronómico</title>
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo"><span>🍽️</span> StockGastro</div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <a href="index.html" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+
+    <div class="nav-section">Inventario</div>
+    <a href="ingrediente.html" class="nav-item"><span class="icon">📦</span> Productos e Ingredientes</a>
+    <a href="mercaderia.html" class="nav-item active"><span class="icon">🛒</span> Ingreso de Mercadería</a>
+
+    <div class="nav-section">Operaciones</div>
+    <a href="ventas.html" class="nav-item"><span class="icon">💰</span> Ventas</a>
+    <a href="receta.html" class="nav-item"><span class="icon">👨‍🍳</span> Elaboraciones</a>
+
+    <div class="nav-section">Administración</div>
+    <a href="usuarios.html" class="nav-item"><span class="icon">👥</span> Usuarios</a>
+    <a href="sucursales.html" class="nav-item"><span class="icon">🏪</span> Sucursales</a>
+    <a href="reportes.html" class="nav-item"><span class="icon">📈</span> Reportes</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar">JG</div>
+      <div><div style="color:#fff;font-size:.85rem">Juan García</div><div>Administrador</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>🛒 Ingreso de Mercadería</h1>
+    <div class="sucursal-badge" onclick="cycleSucursal()">🏪 <span id="sucursalLabel">Sucursal Centro</span> ▾</div>
+  </div>
+  <div class="content">
+
+    <div class="stats" id="statsArea"></div>
+
+    <div class="layout">
+      <div class="form-panel">
+        <h2>📋 Nueva Compra</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Proveedor</label>
+            <input class="form-control" id="f_proveedor" placeholder="Nombre del proveedor">
+          </div>
+          <div class="form-group">
+            <label>Nº Factura / Remito</label>
+            <input class="form-control" id="f_factura" placeholder="Ej: A-0001-00012345">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Fecha</label>
+            <input class="form-control" id="f_fecha" type="date">
+          </div>
+          <div class="form-group">
+            <label>Tipo de ítem</label>
+            <select class="form-control" id="f_tipo" onchange="renderItemSelect()">
+              <option value="ingrediente">Ingrediente</option>
+              <option value="producto">Producto</option>
+            </select>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="items-section">
+          <h3>Ítems de la compra</h3>
+          <div class="item-add-row">
+            <div class="form-group" style="margin:0">
+              <label>Ítem</label>
+              <select class="form-control" id="f_item"></select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>Cantidad</label>
+              <input class="form-control" id="f_cant" type="number" min="1" value="1">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>P. Unit ($)</label>
+              <input class="form-control" id="f_precio" type="number" min="0" placeholder="0">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>&nbsp;</label>
+              <button class="btn btn-primary" onclick="addItem()" style="padding:9px 14px">＋</button>
+            </div>
+          </div>
+          <div class="items-list">
+            <table>
+              <thead><tr><th>Ítem</th><th>Tipo</th><th>Cant.</th><th>P.Unit</th><th>Subtotal</th><th></th></tr></thead>
+              <tbody id="itemsBody"><tr><td colspan="6"><div class="empty-items">Agregá ítems a la compra</div></td></tr></tbody>
+            </table>
+          </div>
+          <div class="total-box">
+            <span>Total de la compra</span>
+            <strong id="totalLabel">$0</strong>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:16px">
+          <label>Observaciones</label>
+          <textarea class="form-control" id="f_obs" rows="2" placeholder="Notas opcionales..."></textarea>
+        </div>
+        <button class="btn btn-success btn-full" onclick="registrarCompra()">✅ Registrar Ingreso</button>
+      </div>
+
+      <div class="history-panel">
+        <div class="history-header"><h2>🕓 Historial</h2></div>
+        <div class="history-filters">
+          <input class="search-sm" id="histSearch" placeholder="🔍 Buscar proveedor..." oninput="renderHistory()">
+        </div>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div class="modal-meta" id="modalMeta"></div>
+    <table class="detail-table">
+      <thead><tr><th>Ítem</th><th>Tipo</th><th>Cantidad</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
+      <tbody id="modalBody"></tbody>
+    </table>
+    <div class="total-box" style="margin-top:12px">
+      <span>Total</span>
+      <strong id="modalTotal"></strong>
+    </div>
+    <div id="modalObs" style="margin-top:12px;font-size:0.82rem;color:var(--muted)"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/mercaderia.js"></script>
+</body>
+</html>

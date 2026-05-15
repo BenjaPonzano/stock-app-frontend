@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reportes - Stock Gastronómico</title>
+<link rel="stylesheet" href="CSS/style.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo"><span>🍽️</span> StockGastro</div>
+  <nav>
+    <div class="nav-section">Principal</div>
+    <a href="index.html" class="nav-item"><span class="icon">📊</span> Dashboard</a>
+
+    <div class="nav-section">Inventario</div>
+    <a href="ingrediente.html" class="nav-item"><span class="icon">📦</span> Productos e Ingredientes</a>
+    <a href="mercaderia.html" class="nav-item"><span class="icon">🛒</span> Ingreso de Mercadería</a>
+
+    <div class="nav-section">Operaciones</div>
+    <a href="ventas.html" class="nav-item"><span class="icon">💰</span> Ventas</a>
+    <a href="receta.html" class="nav-item"><span class="icon">👨‍🍳</span> Elaboraciones</a>
+
+    <div class="nav-section">Administración</div>
+    <a href="usuarios.html" class="nav-item"><span class="icon">👥</span> Usuarios</a>
+    <a href="sucursales.html" class="nav-item"><span class="icon">🏪</span> Sucursales</a>
+    <a href="reportes.html" class="nav-item active"><span class="icon">📈</span> Reportes</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-badge">
+      <div class="avatar">JG</div>
+      <div><div style="color:#fff;font-size:.85rem">Juan García</div><div>Administrador</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1>📈 Reportes y Estadísticas</h1>
+    <div class="sucursal-badge" onclick="cargarDatosAPI()">🔄 Actualizar Datos</div>
+  </div>
+
+  <div class="content">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('rep-productos')">1. Stock y Precios Actuales</div>
+      <div class="tab" onclick="switchTab('rep-ingresos')">2. Historial de Compras</div>
+      <div class="tab" onclick="switchTab('rep-ventas')">3. Historial de Ventas</div>
+      <div class="tab" onclick="switchTab('rep-elab')">4. Elaboraciones Internas</div>
+    </div>
+
+    <div id="rep-productos" class="report-section active">
+      <div class="toolbar">
+        <input type="text" id="r1-search" class="search-box" placeholder="🔍 Buscar por nombre o categoría..." oninput="renderRepProductos()">
+        <select id="r1-tipo" class="filter-select" onchange="renderRepProductos()">
+          <option value="todos">Todos los ítems</option>
+          <option value="producto">Solo Productos</option>
+          <option value="ingrediente">Solo Ingredientes</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tipo</th><th>Nombre</th><th>Categoría</th><th>Stock Actual</th><th>Precio Actual</th></tr></thead>
+          <tbody id="tb-productos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="rep-ingresos" class="report-section">
+      <div class="toolbar">
+        <input type="text" id="r2-search" class="search-box" placeholder="🔍 Buscar proveedor o ítem..." oninput="renderRepIngresos()">
+        <input type="date" id="r2-fecha" class="filter-select" onchange="renderRepIngresos()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha Compra</th><th>Nº Factura</th><th>Proveedor</th><th>Ítem Comprado</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
+          <tbody id="tb-ingresos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="rep-ventas" class="report-section">
+      <div class="toolbar">
+        <input type="text" id="r3-search" class="search-box" placeholder="🔍 Buscar por Nº Venta o Cajero..." oninput="renderRepVentas()">
+        <select id="r3-pago" class="filter-select" onchange="renderRepVentas()">
+          <option value="">Todos los métodos</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="mp">MercadoPago</option>
+        </select>
+        <input type="date" id="r3-fecha" class="filter-select" onchange="renderRepVentas()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Sucursal</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Cajero</th></tr></thead>
+          <tbody id="tb-ventas"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="rep-elab" class="report-section">
+      <div class="toolbar">
+        <select id="r4-sucursal" class="filter-select" onchange="renderRepElaboraciones()">
+          <option value="">Todas las sucursales</option>
+          <option value="Sucursal Centro">Sucursal Centro</option>
+          <option value="Sucursal Norte">Sucursal Norte</option>
+          <option value="Sucursal Sur">Sucursal Sur</option>
+        </select>
+        <input type="date" id="r4-fecha" class="filter-select" onchange="renderRepElaboraciones()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nº Lote</th><th>Fecha</th><th>Sucursal</th><th>Producto Generado</th><th>Cant. Producida</th></tr></thead>
+          <tbody id="tb-elab"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/utils.js"></script>
+<script src="js/reportes.js"></script>
+</body>
+</html>
