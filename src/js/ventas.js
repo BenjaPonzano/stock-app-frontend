@@ -1,37 +1,64 @@
+const API = 'http://localhost:3000/api';
 const pagoLabels = { ef: 'Efectivo', mp: 'Mercado Pago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' };
 const pagoEmojis = { ef: '💵', mp: '📱', td: '💳', tc: '💳' };
 
-const catalogoProductos = [
-  { id: 1, nombre: 'Hamburguesa Clásica', cat: 'Hamburguesas', emoji: '🍔', precio: 2800, stock: 18 },
-  { id: 2, nombre: 'Hamburguesa Doble', cat: 'Hamburguesas', emoji: '🍔', precio: 3500, stock: 10 },
-  { id: 3, nombre: 'Pizza Muzzarella', cat: 'Pizzas', emoji: '🍕', precio: 3200, stock: 3 },
-  { id: 4, nombre: 'Pizza Napolitana', cat: 'Pizzas', emoji: '🍕', precio: 3600, stock: 0 },
-  { id: 5, nombre: 'Empanada de Carne', cat: 'Empanadas', emoji: '🥟', precio: 650, stock: 0 },
-  { id: 6, nombre: 'Empanada de Jamón', cat: 'Empanadas', emoji: '🥟', precio: 650, stock: 12 },
-  { id: 7, nombre: 'Milanesa Napolitana', cat: 'Platos', emoji: '🍽️', precio: 3800, stock: 12 },
-  { id: 8, nombre: 'Papas Fritas', cat: 'Guarniciones', emoji: '🍟', precio: 1200, stock: 25 },
-  { id: 9, nombre: 'Gaseosa 500ml', cat: 'Bebidas', emoji: '🥤', precio: 800, stock: 30 },
-  { id: 10, nombre: 'Agua Mineral', cat: 'Bebidas', emoji: '💧', precio: 600, stock: 20 },
-  { id: 11, nombre: 'Limonada', cat: 'Bebidas', emoji: '🍋', precio: 900, stock: 2 },
-  { id: 12, nombre: 'Ensalada Verde', cat: 'Guarniciones', emoji: '🥗', precio: 900, stock: 8 },
-];
-
+let catalogoProductos = [];
 let carrito = [];
 let pagoSeleccionado = 'ef';
 let catActiva = 'Todos';
+let historial = [];
 
-let historial = [
-  { id: 'V-0001', fecha: '2025-05-09T10:30', sucursal: 'Sucursal Centro', pago: 'ef', descuento: 0, items: [{ nombre: 'Hamburguesa Clásica', emoji: '🍔', cant: 2, precio: 2800, sub: 5600 }, { nombre: 'Papas Fritas', emoji: '🍟', cant: 2, precio: 1200, sub: 2400 }, { nombre: 'Gaseosa 500ml', emoji: '🥤', cant: 2, precio: 800, sub: 1600 }], total: 9600 },
-  { id: 'V-0002', fecha: '2025-05-09T11:15', sucursal: 'Sucursal Norte', pago: 'mp', descuento: 10, items: [{ nombre: 'Pizza Muzzarella', emoji: '🍕', cant: 1, precio: 3200, sub: 3200 }, { nombre: 'Limonada', emoji: '🍋', cant: 2, precio: 900, sub: 1800 }], total: 4500 },
-  { id: 'V-0003', fecha: '2025-05-08T20:45', sucursal: 'Sucursal Centro', pago: 'td', descuento: 0, items: [{ nombre: 'Milanesa Napolitana', emoji: '🍽️', cant: 1, precio: 3800, sub: 3800 }, { nombre: 'Ensalada Verde', emoji: '🥗', cant: 1, precio: 900, sub: 900 }, { nombre: 'Agua Mineral', emoji: '💧', cant: 1, precio: 600, sub: 600 }], total: 5300 },
-  { id: 'V-0004', fecha: '2025-05-08T13:00', sucursal: 'Sucursal Sur', pago: 'ef', descuento: 0, items: [{ nombre: 'Empanada de Jamón', emoji: '🥟', cant: 6, precio: 650, sub: 3900 }, { nombre: 'Gaseosa 500ml', emoji: '🥤', cant: 2, precio: 800, sub: 1600 }], total: 5500 },
-];
+// ── Carga inicial ──────────────────────────────────────────────
+async function cargarDatos() {
+  await Promise.all([cargarProductos(), cargarHistorial()]);
+}
 
-function getCats() { return ['Todos', ...new Set(catalogoProductos.map(p => p.cat))]; }
+async function cargarProductos() {
+  try {
+    const res = await fetch(`${API}/productos`);
+    catalogoProductos = await res.json();
+    renderCatChips();
+    renderCatalogo();
+  } catch (e) {
+    showToast('Error cargando productos', 'error');
+  }
+}
+
+async function cargarHistorial() {
+  try {
+    const res = await fetch(`${API}/ventas`);
+    const ventas = await res.json();
+    historial = ventas.map(v => ({
+      id:        'V-' + String(v.idCompra).padStart(4, '0'),
+      idCompra:  v.idCompra,
+      fecha:     v.fecha,
+      sucursal:  sucursales[sucIdx],
+      pago:      v.tipoPago,
+      descuento: v.descuento,
+      total:     v.total,
+      items:     (v.items || []).map(i => ({
+        id:     i.idProducto,
+        nombre: i.nombre || '',
+        emoji:  i.emoji  || '🍽️',
+        cant:   i.cant,
+        precio: i.precioUnitario,
+        sub:    i.cant * i.precioUnitario
+      }))
+    }));
+    renderStats();
+    renderHistory();
+  } catch (e) {
+    showToast('Error cargando historial', 'error');
+  }
+}
+
+// ── Catálogo ───────────────────────────────────────────────────
+function getCats() { return ['Todos', ...new Set(catalogoProductos.map(p => p.categoria))]; }
 
 function renderCatChips() {
-  const cats = getCats();
-  document.getElementById('catChips').innerHTML = cats.map(c => `<div class="cat-chip ${c === catActiva ? 'active' : ''}" onclick="setCategoria('${c}')">${c}</div>`).join('');
+  document.getElementById('catChips').innerHTML = getCats().map(c =>
+    `<div class="cat-chip ${c === catActiva ? 'active' : ''}" onclick="setCategoria('${c}')">${c}</div>`
+  ).join('');
 }
 
 function setCategoria(c) { catActiva = c; renderCatChips(); renderCatalogo(); }
@@ -39,7 +66,7 @@ function setCategoria(c) { catActiva = c; renderCatChips(); renderCatalogo(); }
 function renderCatalogo() {
   const search = document.getElementById('prodSearch').value.toLowerCase();
   const prods = catalogoProductos.filter(p => {
-    const matchCat = catActiva === 'Todos' || p.cat === catActiva;
+    const matchCat = catActiva === 'Todos' || p.categoria === catActiva;
     const matchSearch = !search || p.nombre.toLowerCase().includes(search);
     return matchCat && matchSearch;
   });
@@ -49,13 +76,14 @@ function renderCatalogo() {
     const sl = p.stock === 0 ? 'Sin stock' : p.stock < 5 ? `⚠ ${p.stock} u.` : `${p.stock} u.`;
     return `<div class="prod-card ${ss}" onclick="${p.stock > 0 ? `addToCart(${p.id})` : ''}">
       <span class="prod-stock-badge ${sb}">${sl}</span>
-      <div class="prod-emoji">${p.emoji}</div>
+      <div class="prod-emoji">${p.emoji || '🍽️'}</div>
       <div class="prod-nombre">${p.nombre}</div>
-      <div class="prod-precio">$${p.precio.toLocaleString()}</div>
+      <div class="prod-precio">$${p.precioVenta.toLocaleString()}</div>
     </div>`;
   }).join('');
 }
 
+// ── Carrito ────────────────────────────────────────────────────
 function addToCart(id) {
   const prod = catalogoProductos.find(p => p.id === id);
   const ex = carrito.find(i => i.id === id);
@@ -63,7 +91,7 @@ function addToCart(id) {
     if (ex.cant >= prod.stock) { showToast('No hay más stock disponible', 'error'); return; }
     ex.cant++; ex.sub = ex.cant * ex.precio;
   } else {
-    carrito.push({ id, nombre: prod.nombre, emoji: prod.emoji, cant: 1, precio: prod.precio, sub: prod.precio });
+    carrito.push({ id, nombre: prod.nombre, emoji: prod.emoji || '🍽️', cant: 1, precio: prod.precioVenta, sub: prod.precioVenta });
   }
   renderCarrito(); updateTotal();
 }
@@ -105,6 +133,7 @@ function updateTotal() {
   calcVuelto();
 }
 
+// ── Pago ───────────────────────────────────────────────────────
 function selectPago(p) {
   pagoSeleccionado = p;
   ['ef', 'mp', 'td', 'tc'].forEach(k => document.getElementById('p_' + k).classList.toggle('selected', k === p));
@@ -120,26 +149,61 @@ function calcVuelto() {
   document.getElementById('vueltoLabel').textContent = con > 0 ? (vuelto >= 0 ? `Vuelto: $${vuelto.toLocaleString()}` : '⚠ Monto insuficiente') : '';
 }
 
-function registrarVenta() {
+// ── Registrar venta ────────────────────────────────────────────
+async function registrarVenta() {
   if (carrito.length === 0) { showToast('El carrito está vacío', 'error'); return; }
+
   const sub = carrito.reduce((s, i) => s + i.sub, 0);
   const desc = Math.min(100, Math.max(0, +document.getElementById('descuento').value || 0));
   const total = Math.round(sub * (1 - desc / 100));
-  const newId = 'V-' + String(historial.length + 1).padStart(4, '0');
-  const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const fecha = now.toISOString().slice(0, 16);
-  historial.unshift({ id: newId, fecha, sucursal: sucursales[sucIdx], pago: pagoSeleccionado, descuento: desc, items: carrito.map(i => ({ ...i })), total });
-  carrito.forEach(ci => { const p = catalogoProductos.find(p => p.id === ci.id); if (p) p.stock = Math.max(0, p.stock - ci.cant); });
-  mostrarTicket(newId, fecha, total, desc, sub);
-  carrito = [];
-  document.getElementById('descuento').value = 0;
-  document.getElementById('f_conCuanto').value = '';
-  document.getElementById('vueltoLabel').textContent = '';
-  document.getElementById('descuentoMonto').textContent = '';
-  renderCarrito(); updateTotal(); renderCatalogo(); renderStats(); renderHistory();
-  showToast(`Venta ${newId} registrada ✓`, 'success');
+
+  const body = {
+    tipoPago:  pagoSeleccionado,
+    descuento: desc,
+    total,
+    items: carrito.map(i => ({
+      idProducto:     i.id,
+      cant:           i.cant,
+      precioUnitario: i.precio
+    }))
+  };
+
+  try {
+    const res = await fetch(`${API}/ventas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('Error al registrar');
+
+    const venta = await res.json();
+    const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    const fecha = now.toISOString().slice(0, 16);
+    const newId = 'V-' + String(venta.idCompra).padStart(4, '0');
+
+    mostrarTicket(newId, fecha, total, desc, sub);
+
+    // Actualizar stock local en el catálogo
+    carrito.forEach(ci => {
+      const p = catalogoProductos.find(p => p.id === ci.id);
+      if (p) p.stock = Math.max(0, p.stock - ci.cant);
+    });
+
+    carrito = [];
+    document.getElementById('descuento').value = 0;
+    document.getElementById('f_conCuanto').value = '';
+    document.getElementById('vueltoLabel').textContent = '';
+    document.getElementById('descuentoMonto').textContent = '';
+
+    renderCarrito(); updateTotal(); renderCatalogo();
+    await cargarHistorial();
+    showToast(`Venta ${newId} registrada ✓`, 'success');
+  } catch (e) {
+    showToast('Error al registrar la venta', 'error');
+  }
 }
 
+// ── Ticket ─────────────────────────────────────────────────────
 function mostrarTicket(id, fecha, total, desc, sub) {
   const d = new Date(fecha);
   const lines = carrito.map(i => `${i.emoji} ${i.nombre} x${i.cant} .......... $${i.sub.toLocaleString()}`).join('\n');
@@ -155,9 +219,10 @@ ${desc > 0 ? `<div style="display:flex;justify-content:space-between"><span>Subt
   tb.classList.add('show');
 }
 
+// ── Stats e Historial ──────────────────────────────────────────
 function renderStats() {
   const hoy = new Date().toISOString().slice(0, 10);
-  const ventasHoy = historial.filter(v => v.fecha.startsWith(hoy));
+  const ventasHoy = historial.filter(v => v.fecha && v.fecha.startsWith(hoy));
   const totalHoy = ventasHoy.reduce((s, v) => s + v.total, 0);
   const totalGeneral = historial.reduce((s, v) => s + v.total, 0);
   const ticket = historial.length > 0 ? Math.round(totalGeneral / historial.length) : 0;
@@ -175,7 +240,7 @@ function renderHistory() {
   const filtered = historial.filter(v => {
     const matchS = !search || v.id.toLowerCase().includes(search) || v.items.some(i => i.nombre.toLowerCase().includes(search));
     const matchP = !pago || v.pago === pago;
-    const matchM = !mes || v.fecha.startsWith(mes);
+    const matchM = !mes || (v.fecha && v.fecha.startsWith(mes));
     return matchS && matchP && matchM;
   });
   const list = document.getElementById('historyList');
@@ -188,7 +253,7 @@ function renderHistory() {
           <div class="venta-meta">
             <span>📅 ${formatFecha(v.fecha)}</span>
             <span>🏪 ${v.sucursal}</span>
-            <span>${pagoEmojis[v.pago]} ${pagoLabels[v.pago]}</span>
+            <span>${pagoEmojis[v.pago] || ''} ${pagoLabels[v.pago] || v.pago}</span>
             ${v.descuento > 0 ? `<span style="color:var(--danger)">−${v.descuento}%</span>` : ''}
           </div>
         </div>
@@ -199,6 +264,7 @@ function renderHistory() {
 }
 
 function formatFecha(f) {
+  if (!f) return '';
   const d = new Date(f);
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }) + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
@@ -206,7 +272,7 @@ function formatFecha(f) {
 function openModal(id) {
   const v = historial.find(h => h.id === id); if (!v) return;
   document.getElementById('modalTitle').textContent = `🧾 ${v.id}`;
-  document.getElementById('modalMeta').innerHTML = `📅 ${formatFecha(v.fecha)} &nbsp;·&nbsp; 🏪 ${v.sucursal} &nbsp;·&nbsp; ${pagoEmojis[v.pago]} ${pagoLabels[v.pago]}`;
+  document.getElementById('modalMeta').innerHTML = `📅 ${formatFecha(v.fecha)} &nbsp;·&nbsp; 🏪 ${v.sucursal} &nbsp;·&nbsp; ${pagoEmojis[v.pago] || ''} ${pagoLabels[v.pago] || v.pago}`;
   document.getElementById('modalBody').innerHTML = v.items.map(i => `<tr><td>${i.emoji} ${i.nombre}</td><td>${i.cant}</td><td>$${i.precio.toLocaleString()}</td><td>$${i.sub.toLocaleString()}</td></tr>`).join('');
   const sub = v.items.reduce((s, i) => s + i.sub, 0);
   document.getElementById('modalDescuento').textContent = v.descuento > 0 ? `${v.descuento}% (− $${(sub - v.total).toLocaleString()})` : 'Sin descuento';
@@ -217,5 +283,8 @@ function openModal(id) {
 
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
-renderCatChips(); renderCatalogo(); renderStats(); renderHistory();
-selectPago('ef');
+// ── Init ───────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  cargarDatos();
+  selectPago('ef');
+});
