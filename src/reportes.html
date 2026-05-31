@@ -20,6 +20,7 @@
 
     <div class="nav-section">Operaciones</div>
     <a href="ventas.html" class="nav-item"><span class="icon">💰</span> Ventas</a>
+    <a href="recetas.html" class="nav-item"><span class="icon">📋</span> Recetas</a>
     <a href="receta.html" class="nav-item"><span class="icon">👨‍🍳</span> Elaboraciones</a>
 
     <div class="nav-section">Administración</div>
@@ -81,18 +82,19 @@
 
     <div id="rep-ventas" class="report-section">
       <div class="toolbar">
-        <input type="text" id="r3-search" class="search-box" placeholder="🔍 Buscar por Nº Venta o Cajero..." oninput="renderRepVentas()">
+        <input type="text" id="r3-search" class="search-box" placeholder="🔍 Buscar por Nº Venta..." oninput="renderRepVentas()">
         <select id="r3-pago" class="filter-select" onchange="renderRepVentas()">
           <option value="">Todos los métodos</option>
-          <option value="efectivo">Efectivo</option>
-          <option value="tarjeta">Tarjeta</option>
+          <option value="ef">Efectivo</option>
           <option value="mp">MercadoPago</option>
+          <option value="td">Tarjeta Débito</option>
+          <option value="tc">Tarjeta Crédito</option>
         </select>
-        <input type="date" id="r3-fecha" class="filter-select" onchange="renderRepVentas()">
+        <input type="month" id="r3-fecha" class="filter-select" onchange="renderRepVentas()">
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Sucursal</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Cajero</th></tr></thead>
+          <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Ítems</th></tr></thead>
           <tbody id="tb-ventas"></tbody>
         </table>
       </div>
@@ -100,17 +102,12 @@
 
     <div id="rep-elab" class="report-section">
       <div class="toolbar">
-        <select id="r4-sucursal" class="filter-select" onchange="renderRepElaboraciones()">
-          <option value="">Todas las sucursales</option>
-          <option value="Sucursal Centro">Sucursal Centro</option>
-          <option value="Sucursal Norte">Sucursal Norte</option>
-          <option value="Sucursal Sur">Sucursal Sur</option>
-        </select>
-        <input type="date" id="r4-fecha" class="filter-select" onchange="renderRepElaboraciones()">
+        <input type="text" id="r4-search" class="search-box" placeholder="🔍 Buscar por receta o producto..." oninput="renderRepElaboraciones()">
+        <input type="month" id="r4-fecha" class="filter-select" onchange="renderRepElaboraciones()">
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Nº Lote</th><th>Fecha</th><th>Sucursal</th><th>Producto Generado</th><th>Cant. Producida</th></tr></thead>
+          <thead><tr><th>Nº Lote</th><th>Fecha</th><th>Receta</th><th>Producto Generado</th><th>Cant. Producida</th><th>Ingredientes</th></tr></thead>
           <tbody id="tb-elab"></tbody>
         </table>
       </div>

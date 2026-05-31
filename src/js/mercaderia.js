@@ -51,12 +51,12 @@ function addItem() {
   if (!cant || cant <= 0) return showToast('Cantidad inválida', 'error');
   if (!precio || precio <= 0) return showToast('Precio inválido', 'error');
 
-  const existing = compraItems.findIndex(i => i.nombre === item.nombre && i.tipo === tipo);
+  const existing = compraItems.findIndex(i => i.id === itemId && i.tipo === tipo);
   if (existing >= 0) {
     compraItems[existing].cant += cant;
     compraItems[existing].subtotal = compraItems[existing].cant * compraItems[existing].precio;
   } else {
-    compraItems.push({ nombre: item.nombre, tipo, cant, unidad: item.unidad, precio, subtotal: cant * precio });
+    compraItems.push({ id: itemId, nombre: item.nombre, tipo, cant, unidad: item.unidad, precio, subtotal: cant * precio });
   }
 
   document.getElementById('f_cant').value = 1;

@@ -144,10 +144,13 @@ function renderRepVentas() {
   const pagoFiltro = document.getElementById('r3-pago').value;
   const fechaFiltro = document.getElementById('r3-fecha').value;
 
+  const pagoLabels = { ef: 'Efectivo', mp: 'MercadoPago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' };
+
   let filtered = apiVentas.filter(v => {
-    const matchSearch = v.id.toLowerCase().includes(q) || v.cajero.toLowerCase().includes(q);
-    const matchPago = !pagoFiltro || v.pago === pagoFiltro;
-    const matchDate = !fechaFiltro || v.fecha.startsWith(fechaFiltro);
+    const idStr = 'V-' + String(v.idCompra).padStart(4, '0');
+    const matchSearch = !q || idStr.toLowerCase().includes(q);
+    const matchPago = !pagoFiltro || v.tipoPago === pagoFiltro;
+    const matchDate = !fechaFiltro || (v.fecha && v.fecha.toString().startsWith(fechaFiltro));
     return matchSearch && matchPago && matchDate;
   });
 
@@ -155,41 +158,41 @@ function renderRepVentas() {
 
   const tbody = document.getElementById('tb-ventas');
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div>No hay ventas registradas para este filtro</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">💰</div>No hay ventas registradas para este filtro</div></td></tr>`;
     return;
   }
 
-  const pagoLabels = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', mp: 'MercadoPago' };
-  const pagoBadges = { efectivo: 'badge-success', tarjeta: 'badge-primary', mp: 'badge-mp' };
-
-  tbody.innerHTML = filtered.map(v => `
+  tbody.innerHTML = filtered.map(v => {
+    const idStr = 'V-' + String(v.idCompra).padStart(4, '0');
+    return `
     <tr>
-      <td style="font-weight:700; color:var(--primary)">${v.id}</td>
+      <td style="font-weight:700; color:var(--primary)">${idStr}</td>
       <td>${formatFechaHora(v.fecha)}</td>
-      <td>🏪 ${v.sucursal}</td>
-      <td><span class="badge ${pagoBadges[v.pago] || 'badge-primary'}">${pagoLabels[v.pago] || v.pago}</span></td>
+      <td><span class="badge badge-primary">${pagoLabels[v.tipoPago] || v.tipoPago || '-'}</span></td>
       <td>${v.descuento > 0 ? v.descuento + '%' : '-'}</td>
       <td><strong style="color:var(--text)">$${v.total.toLocaleString()}</strong></td>
-      <td style="color:var(--muted)">👤 ${v.cajero}</td>
-    </tr>
-  `).join('');
+      <td>${(v.items || []).length} ítem(s)</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderRepElaboraciones() {
-  const sucFiltro = document.getElementById('r4-sucursal').value;
+  const q = document.getElementById('r4-search').value.toLowerCase();
   const fechaFiltro = document.getElementById('r4-fecha').value;
 
   let filtered = apiElaboraciones.filter(e => {
-    const matchSuc = !sucFiltro || e.sucursal === sucFiltro;
-    const matchDate = !fechaFiltro || e.fecha.startsWith(fechaFiltro);
-    return matchSuc && matchDate;
+    const matchSearch = !q ||
+      (e.recetaNombre || '').toLowerCase().includes(q) ||
+      (e.productoGenerado?.nombre || '').toLowerCase().includes(q);
+    const matchDate = !fechaFiltro || (e.fecha && e.fecha.toString().startsWith(fechaFiltro));
+    return matchSearch && matchDate;
   });
 
   filtered.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   const tbody = document.getElementById('tb-elab');
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">👨‍🍳</div>No hay elaboraciones para este filtro</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="icon">👨‍🍳</div>No hay elaboraciones para este filtro</div></td></tr>`;
     return;
   }
 
@@ -197,9 +200,13 @@ function renderRepElaboraciones() {
     <tr>
       <td style="font-weight:700; color:var(--primary)">${e.id}</td>
       <td>${formatFechaHora(e.fecha)}</td>
-      <td>🏪 ${e.sucursal}</td>
-      <td><strong>${e.productoGenerado.nombre}</strong></td>
-      <td><span class="badge badge-success">+${e.productoGenerado.cantidad} ${e.productoGenerado.unidad}</span></td>
+      <td>${e.recetaNombre || '-'}</td>
+      <td><strong>${e.productoGenerado?.nombre || '-'}</strong></td>
+      <td><span class="badge badge-success">+${e.productoGenerado?.cantidad} ${e.productoGenerado?.unidad}</span></td>
+      <td style="color:var(--muted)">
+        ${(e.ingredientesConsumidos || []).slice(0, 2).map(i => `${i.nombre} -${i.cant}${i.unidad}`).join(', ')}
+        ${(e.ingredientesConsumidos || []).length > 2 ? '...' : ''}
+      </td>
     </tr>
   `).join('');
 }
