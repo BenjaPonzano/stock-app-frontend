@@ -6,6 +6,10 @@ import Ingredientes from './pages/Ingredientes'
 import Ventas from './pages/Ventas'
 import Sucursales from './pages/Sucursales'
 import Usuarios from './pages/Usuarios'
+import Elaboraciones from './pages/Elaboraciones'
+import Recetas from './pages/Recetas'
+import Mercaderia from './pages/Mercaderia'
+import Reportes from './pages/Reportes'
 import { isLoggedIn } from './services/auth'
 
 function PrivateRoute({ children }) {
@@ -22,6 +26,10 @@ function App() {
         <Route path="/ventas" element={<PrivateRoute><Ventas /></PrivateRoute>} />
         <Route path="/sucursales" element={<PrivateRoute><Sucursales /></PrivateRoute>} />
         <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+        <Route path="/elaboraciones" element={<PrivateRoute><Elaboraciones /></PrivateRoute>} />
+        <Route path="/recetas" element={<PrivateRoute><Recetas /></PrivateRoute>} />
+        <Route path="/mercaderia" element={<PrivateRoute><Mercaderia /></PrivateRoute>} />
+        <Route path="/reportes" element={<PrivateRoute><Reportes /></PrivateRoute>} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
