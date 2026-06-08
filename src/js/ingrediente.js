@@ -121,10 +121,11 @@ async function saveItem() {
 
   const isP = currentTab === 'productos';
   const obj = {
-    nombre, categoria: document.getElementById('f_cat').value, unidad: document.getElementById('f_unidad').value,
-    stock: +document.getElementById('f_stock').value, stockMin: +document.getElementById('f_stockMin').value,
-    ...(isP ? { precioVenta: +document.getElementById('f_precioVenta').value, precioCompra: +document.getElementById('f_precioCompra').value } : { precio: +document.getElementById('f_precio').value })
-  };
+  nombre, categoria: document.getElementById('f_cat').value, unidad: document.getElementById('f_unidad').value,
+  stock: +document.getElementById('f_stock').value, stockMin: +document.getElementById('f_stockMin').value,
+  idSucursal: getSucursalId(),  // ← agregá esta línea
+  ...(isP ? { precioVenta: +document.getElementById('f_precioVenta').value, precioCompra: +document.getElementById('f_precioCompra').value } : { precio: +document.getElementById('f_precio').value })
+};
 
   const url = `http://localhost:3000/api/${currentTab}${editingId ? '/' + editingId : ''}`;
   await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(obj) });
@@ -142,9 +143,20 @@ async function deleteItem(id) {
 }
 
 async function cargarDatosAPI() {
-  const res = await fetch(`http://localhost:3000/api/${currentTab}`);
+  const idSucursal = getSucursalId();
+  console.log('idSucursal:', idSucursal);  // ← agregá esta línea
+  const url = `http://localhost:3000/api/${currentTab}${idSucursal ? '?sucursal=' + idSucursal : ''}`;
+  console.log('Fetching:', url);
+  const res = await fetch(url);
   data[currentTab] = await res.json();
   renderStats(); renderFilterCats(); renderTable();
 }
 
-document.addEventListener("DOMContentLoaded", () => cargarDatosAPI());
+async function cargarDatos() {
+  await cargarDatosAPI();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await cargarSucursales();
+  await cargarDatosAPI();
+});

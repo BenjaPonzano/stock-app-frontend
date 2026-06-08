@@ -7,13 +7,16 @@ document.getElementById('f_fecha').value = new Date().toISOString().split('T')[0
 
 async function cargarDatosAPI() {
   try {
-    const resIng = await fetch('http://localhost:3000/api/ingredientes');
+    const idSucursal = getSucursalId();
+    const qs = idSucursal ? `?sucursal=${idSucursal}` : '';
+
+    const resIng = await fetch(`http://localhost:3000/api/ingredientes${qs}`);
     catalogoIngredientes = await resIng.json();
 
-    const resProd = await fetch('http://localhost:3000/api/productos');
+    const resProd = await fetch(`http://localhost:3000/api/productos${qs}`);
     catalogoProductos = await resProd.json();
 
-    const resCompras = await fetch('http://localhost:3000/api/compras');
+    const resCompras = await fetch(`http://localhost:3000/api/compras${qs}`);
     historialCompras = await resCompras.json();
 
     renderItemSelect();
@@ -99,14 +102,14 @@ async function registrarCompra() {
   if (!fecha) return showToast('Seleccioná la fecha', 'error');
   if (compraItems.length === 0) return showToast('Agregá ítems', 'error');
 
-  const payload = {
-    fecha,
-    proveedor,
-    factura: document.getElementById('f_factura').value.trim() || '—',
-    obs: document.getElementById('f_obs').value.trim(),
-    sucursal: sucursales[sucIdx],
-    items: [...compraItems]
-  };
+const payload = {
+  fecha,
+  proveedor,
+  factura: document.getElementById('f_factura').value.trim() || '—',
+  obs: document.getElementById('f_obs').value.trim(),
+  idSucursal: getSucursalId(),  // ← cambio
+  items: [...compraItems]
+};
 
   try {
     const res = await fetch('http://localhost:3000/api/compras', {
@@ -197,4 +200,11 @@ function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
 }
 
-document.addEventListener("DOMContentLoaded", cargarDatosAPI);
+async function cargarDatos() {
+  await cargarDatosAPI();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await cargarSucursales();
+  await cargarDatosAPI();
+});

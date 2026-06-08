@@ -1,4 +1,3 @@
-const API = 'http://localhost:3000/api';
 const pagoLabels = { ef: 'Efectivo', mp: 'Mercado Pago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' };
 const pagoEmojis = { ef: '💵', mp: '📱', td: '💳', tc: '💳' };
 
@@ -15,7 +14,9 @@ async function cargarDatos() {
 
 async function cargarProductos() {
   try {
-    const res = await fetch(`${API}/productos`);
+    const idSucursal = getSucursalId();
+    const url = `${API}/productos${idSucursal ? '?sucursal=' + idSucursal : ''}`;
+    const res = await fetch(url);
     catalogoProductos = await res.json();
     renderCatChips();
     renderCatalogo();
@@ -26,13 +27,15 @@ async function cargarProductos() {
 
 async function cargarHistorial() {
   try {
-    const res = await fetch(`${API}/ventas`);
+    const idSucursal = getSucursalId();
+    const url = `${API}/ventas${idSucursal ? '?sucursal=' + idSucursal : ''}`;
+    const res = await fetch(url);
     const ventas = await res.json();
     historial = ventas.map(v => ({
       id:        'V-' + String(v.idCompra).padStart(4, '0'),
       idCompra:  v.idCompra,
       fecha:     v.fecha,
-      sucursal:  sucursales[sucIdx],
+      sucursal: sucursalActual?.nombre || '',
       pago:      v.tipoPago,
       descuento: v.descuento,
       total:     v.total,
@@ -150,7 +153,7 @@ function calcVuelto() {
 }
 
 // ── Registrar venta ────────────────────────────────────────────
-async function registrarVenta() {
+async function registrarVenta(forzada = false) {
   if (carrito.length === 0) { showToast('El carrito está vacío', 'error'); return; }
 
   const sub = carrito.reduce((s, i) => s + i.sub, 0);
@@ -158,9 +161,11 @@ async function registrarVenta() {
   const total = Math.round(sub * (1 - desc / 100));
 
   const body = {
-    tipoPago:  pagoSeleccionado,
-    descuento: desc,
+    tipoPago:   pagoSeleccionado,
+    descuento:  desc,
     total,
+    forzada,
+    idSucursal: getSucursalId(),
     items: carrito.map(i => ({
       idProducto:     i.id,
       cant:           i.cant,
@@ -174,6 +179,17 @@ async function registrarVenta() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
+
+    // Stock insuficiente → mostrar advertencia
+    if (res.status === 409) {
+      const data = await res.json();
+      const productos = data.productos.join(', ');
+      if (confirm(`⚠️ Stock insuficiente para:\n${productos}\n\n¿El vendedor confirma que el producto está disponible?`)) {
+        await registrarVenta(true); // Forzar la venta
+      }
+      return;
+    }
+
     if (!res.ok) throw new Error('Error al registrar');
 
     const venta = await res.json();
@@ -208,7 +224,7 @@ function mostrarTicket(id, fecha, total, desc, sub) {
   const d = new Date(fecha);
   const lines = carrito.map(i => `${i.emoji} ${i.nombre} x${i.cant} .......... $${i.sub.toLocaleString()}`).join('\n');
   const tb = document.getElementById('ticketBox');
-  tb.innerHTML = `<div style="text-align:center;font-weight:700;margin-bottom:4px">🍽️ StockGastro — ${sucursales[sucIdx]}</div>
+  tb.innerHTML = `<div style="text-align:center;font-weight:700;margin-bottom:4px">🍽️ StockGastro — ${sucursalActual?.nombre || ''}</div>
 <div style="text-align:center;color:var(--muted);margin-bottom:8px;font-size:.78rem">${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} · ${id}</div>
 <pre style="font-size:.78rem;font-family:monospace;white-space:pre-wrap">${lines}</pre>
 <hr style="border:none;border-top:1px dashed var(--border);margin:8px 0">
@@ -284,7 +300,8 @@ function openModal(id) {
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
 // ── Init ───────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  cargarDatos();
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarSucursales();
+  await cargarDatos();
   selectPago('ef');
 });

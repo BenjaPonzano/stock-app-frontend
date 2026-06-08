@@ -1,5 +1,3 @@
-const API = 'http://localhost:3000/api';
-
 let recetas = [];
 let stockIngredientes = {}; // idIngrediente → stock
 let historial = [];
@@ -12,10 +10,13 @@ document.getElementById('f_fecha').value = now.toISOString().slice(0, 16);
 // ── Carga inicial ──────────────────────────────────────────────
 async function cargarDatosAPI() {
   try {
+    const idSucursal = getSucursalId();
+    const qs = idSucursal ? `?sucursal=${idSucursal}` : '';
+
     const [resRecetas, resIng, resElab] = await Promise.all([
       fetch(`${API}/recetas`),
-      fetch(`${API}/ingredientes`),
-      fetch(`${API}/elaboraciones`)
+      fetch(`${API}/ingredientes${qs}`),
+      fetch(`${API}/elaboraciones${qs}`)
     ]);
 
     recetas = await resRecetas.json();
@@ -119,17 +120,18 @@ async function registrarElab() {
     if (!confirm(`⚠️ Stock insuficiente en:\n${faltantes.map(i => i.nombre).join(', ')}\n¿Forzar registro y dejar stock en 0?`)) return;
   }
 
-  const payload = {
+const payload = {
     idReceta:     selectedReceta.id,
     recetaNombre: selectedReceta.nombre,
     idProducto:   selectedReceta.idProducto,
     cantidad:     cant,
+    idSucursal:   getSucursalId(),  // ← agregá esta línea
     obs:          document.getElementById('f_obs').value.trim(),
     ingredientesConsumidos: selectedReceta.ingredientes.map(i => ({
       idIngrediente: i.idIngrediente,
       cant:          i.cant * cant
     }))
-  };
+};
 
   try {
     const res = await fetch(`${API}/elaboraciones`, {
@@ -229,4 +231,11 @@ function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
 }
 
-document.addEventListener('DOMContentLoaded', cargarDatosAPI);
+async function cargarDatos() {
+  await cargarDatosAPI();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarSucursales();
+  await cargarDatosAPI();
+});

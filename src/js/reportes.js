@@ -28,12 +28,15 @@ function formatFechaHora(f) {
 
 async function cargarDatosAPI() {
   try {
+    const idSucursal = getSucursalId();
+    const qs = idSucursal ? `?sucursal=${idSucursal}` : '';
+
     const [resP, resI, resC, resE, resV] = await Promise.all([
-      fetch('http://localhost:3000/api/productos'),
-      fetch('http://localhost:3000/api/ingredientes'),
-      fetch('http://localhost:3000/api/compras'),
-      fetch('http://localhost:3000/api/elaboraciones'),
-      fetch('http://localhost:3000/api/ventas')
+      fetch(`http://localhost:3000/api/productos${qs}`),
+      fetch(`http://localhost:3000/api/ingredientes${qs}`),
+      fetch(`http://localhost:3000/api/compras${qs}`),
+      fetch(`http://localhost:3000/api/elaboraciones${qs}`),
+      fetch(`http://localhost:3000/api/ventas${qs}`)
     ]);
 
     apiProductos = await resP.json();
@@ -211,4 +214,11 @@ function renderRepElaboraciones() {
   `).join('');
 }
 
-document.addEventListener("DOMContentLoaded", cargarDatosAPI);
+async function cargarDatos() {
+  await cargarDatosAPI();
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await cargarSucursales();
+  await cargarDatosAPI();
+});

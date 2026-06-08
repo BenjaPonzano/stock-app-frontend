@@ -10,12 +10,15 @@ function getMothPrefix() {
 
 async function cargarDatosDashboard() {
   try {
+    const idSucursal = getSucursalId();
+    const qs = idSucursal ? `?sucursal=${idSucursal}` : '';
+
     const [resVentas, resCompras, resElab, resProd, resIng] = await Promise.all([
-      fetch('http://localhost:3000/api/ventas'),
-      fetch('http://localhost:3000/api/compras'),
-      fetch('http://localhost:3000/api/elaboraciones'),
-      fetch('http://localhost:3000/api/productos'),
-      fetch('http://localhost:3000/api/ingredientes')
+      fetch(`http://localhost:3000/api/ventas${qs}`),
+      fetch(`http://localhost:3000/api/compras${qs}`),
+      fetch(`http://localhost:3000/api/elaboraciones${qs}`),
+      fetch(`http://localhost:3000/api/productos${qs}`),
+      fetch(`http://localhost:3000/api/ingredientes${qs}`)
     ]);
 
     const ventas = await resVentas.json();
@@ -166,4 +169,76 @@ async function cargarDatosDashboard() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', cargarDatosDashboard);
+async function cargarDatos() {
+  await cargarDatosDashboard();
+}
+
+function cycleSucursal() {
+  let dropdown = document.getElementById('sucursalDropdown');
+  if (dropdown) {
+    dropdown.remove();
+    return;
+  }
+
+  dropdown = document.createElement('div');
+  dropdown.id = 'sucursalDropdown';
+  dropdown.style.cssText = `
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    min-width: 180px;
+    overflow: hidden;
+  `;
+
+  // Opción "Todas las sucursales"
+  const itemTodas = document.createElement('div');
+  itemTodas.textContent = '🌐 Todas las sucursales';
+  itemTodas.style.cssText = `
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    background: ${sucursalActual === null ? '#f0f4ff' : 'white'};
+    font-weight: ${sucursalActual === null ? '600' : 'normal'};
+  `;
+  itemTodas.onclick = () => {
+    sucursalActual = null;
+    localStorage.removeItem('sucursalId');
+    document.getElementById('sucursalLabel').textContent = 'Todas las sucursales';
+    dropdown.remove();
+    cargarDatosDashboard();
+  };
+  dropdown.appendChild(itemTodas);
+
+  // Sucursales normales
+  sucursales.forEach(s => {
+    const item = document.createElement('div');
+    item.textContent = s.nombre;
+    item.style.cssText = `
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      background: ${sucursalActual?.idSucursal === s.idSucursal ? '#f0f4ff' : 'white'};
+      font-weight: ${sucursalActual?.idSucursal === s.idSucursal ? '600' : 'normal'};
+    `;
+    item.onclick = () => seleccionarSucursal(s);
+    dropdown.appendChild(item);
+  });
+
+  const btn = document.querySelector('.sucursal-badge');
+  const rect = btn.getBoundingClientRect();
+  dropdown.style.top = `${rect.bottom + window.scrollY + 6}px`;
+  dropdown.style.left = `${rect.left}px`;
+  document.body.appendChild(dropdown);
+
+  setTimeout(() => {
+    document.addEventListener('click', () => dropdown.remove(), { once: true });
+  }, 0);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarSucursales();
+  await cargarDatosDashboard();
+});

@@ -1,5 +1,3 @@
-const API = 'http://localhost:3000/api';
-
 let recetasData = [];
 let productosData = [];
 let ingredientesData = [];
@@ -179,4 +177,7 @@ async function deleteReceta(id) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', cargarDatos);
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarSucursales();
+  await cargarDatos();
+});
