@@ -5,71 +5,58 @@ import { logout } from '../services/auth'
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-
-  const navItem = (path, icon, label) => (
-    <div
-      onClick={() => navigate(path)}
-      style={{
-        ...styles.navItem,
-        background: location.pathname === path ? '#0f3460' : 'transparent'
-      }}
-    >
-      <span>{icon}</span> {label}
-    </div>
-  )
+  const path = location.pathname
 
   return (
-    <div style={styles.sidebar}>
-      <div style={styles.logo}>🍽️ StockGastro</div>
+    <div className="sidebar">
+      <div className="sidebar-logo"><span>🍽️</span> StockGastro</div>
       <nav>
-        <div style={styles.section}>Principal</div>
-        {navItem('/dashboard', '📊', 'Dashboard')}
+        <div className="nav-section">Principal</div>
+        <div className={`nav-item ${path === '/dashboard' ? 'active' : ''}`} onClick={() => navigate('/dashboard')}>
+          <span className="icon">📊</span> Dashboard
+        </div>
 
-        <div style={styles.section}>Inventario</div>
-        {navItem('/ingredientes', '📦', 'Productos e Ingredientes')}
-        {navItem('/mercaderia', '🛒', 'Ingreso de Mercadería')}
+        <div className="nav-section">Inventario</div>
+        <div className={`nav-item ${path === '/ingredientes' ? 'active' : ''}`} onClick={() => navigate('/ingredientes')}>
+          <span className="icon">📦</span> Productos e Ingredientes
+        </div>
+        <div className={`nav-item ${path === '/mercaderia' ? 'active' : ''}`} onClick={() => navigate('/mercaderia')}>
+          <span className="icon">🛒</span> Ingreso de Mercadería
+        </div>
 
-        <div style={styles.section}>Operaciones</div>
-        {navItem('/ventas', '💰', 'Ventas')}
-        {navItem('/recetas', '📋', 'Recetas')}
-        {navItem('/elaboraciones', '👨‍🍳', 'Elaboraciones')}
+        <div className="nav-section">Operaciones</div>
+        <div className={`nav-item ${path === '/ventas' ? 'active' : ''}`} onClick={() => navigate('/ventas')}>
+          <span className="icon">💰</span> Ventas
+        </div>
+        <div className={`nav-item ${path === '/recetas' ? 'active' : ''}`} onClick={() => navigate('/recetas')}>
+          <span className="icon">📋</span> Recetas
+        </div>
+        <div className={`nav-item ${path === '/elaboraciones' ? 'active' : ''}`} onClick={() => navigate('/elaboraciones')}>
+          <span className="icon">👨‍🍳</span> Elaboraciones
+        </div>
 
-        <div style={styles.section}>Administración</div>
-        {navItem('/usuarios', '👥', 'Usuarios')}
-        {navItem('/sucursales', '🏪', 'Sucursales')}
-        {navItem('/reportes', '📈', 'Reportes')}
+        <div className="nav-section">Administración</div>
+        <div className={`nav-item ${path === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
+          <span className="icon">👥</span> Usuarios
+        </div>
+        <div className={`nav-item ${path === '/sucursales' ? 'active' : ''}`} onClick={() => navigate('/sucursales')}>
+          <span className="icon">🏪</span> Sucursales
+        </div>
+        <div className={`nav-item ${path === '/reportes' ? 'active' : ''}`} onClick={() => navigate('/reportes')}>
+          <span className="icon">📈</span> Reportes
+        </div>
       </nav>
-      <div style={styles.footer}>
-        <button onClick={logout} style={styles.logoutBtn}>Cerrar sesión</button>
+      <div className="sidebar-footer">
+        <div className="user-badge">
+          <div className="avatar">JG</div>
+          <div>
+            <div style={{color:'#fff', fontSize:'.85rem'}}>Juan García</div>
+            <div onClick={logout} style={{cursor:'pointer', color:'rgba(255,255,255,0.5)', fontSize:'.8rem'}}>Cerrar sesión</div>
+          </div>
+        </div>
       </div>
     </div>
   )
-}
-
-const styles = {
-  sidebar: {
-    width: '240px', minHeight: '100vh', background: '#16213e',
-    display: 'flex', flexDirection: 'column', padding: '20px 0',
-    position: 'fixed', left: 0, top: 0
-  },
-  logo: {
-    color: 'white', fontSize: '18px', fontWeight: 'bold',
-    padding: '0 20px 20px'
-  },
-  section: {
-    color: '#8b949e', fontSize: '11px', padding: '12px 20px 4px',
-    textTransform: 'uppercase', letterSpacing: '1px'
-  },
-  navItem: {
-    color: '#e6edf3', padding: '10px 20px', cursor: 'pointer',
-    borderRadius: '6px', margin: '2px 8px', fontSize: '14px',
-    display: 'flex', gap: '10px', alignItems: 'center'
-  },
-  footer: { marginTop: 'auto', padding: '20px' },
-  logoutBtn: {
-    width: '100%', padding: '10px', background: '#c0392b',
-    color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer'
-  }
 }
 
 export default Sidebar

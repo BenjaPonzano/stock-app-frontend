@@ -1,119 +1,148 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import axios from 'axios'
 
 const API = 'http://localhost:3001/api'
-const getHeaders = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
+const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
 function Sucursales() {
   const [sucursales, setSucursales] = useState([])
-  const [form, setForm] = useState({ nombre: '', direccion: '', telefono: '' })
-  const [editando, setEditando] = useState(null)
-  const [mostrarForm, setMostrarForm] = useState(false)
+  const [search, setSearch] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState({})
+  const [status, setStatus] = useState(true)
+  const [toast, setToast] = useState('')
 
-  useEffect(() => { cargarSucursales() }, [])
+  useEffect(() => { cargarDatos() }, [])
 
-  const cargarSucursales = async () => {
-    try {
-      const res = await axios.get(`${API}/sucursales`, { headers: getHeaders() })
-      setSucursales(res.data)
-    } catch (error) {
-      console.error('Error:', error)
-    }
+  const showToast = (msg, type = '') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(''), 2800)
+  }
+
+  const cargarDatos = async () => {
+    const res = await fetch(`${API}/sucursales`, { headers: headers() })
+    setSucursales(await res.json())
+  }
+
+  const filtered = sucursales.filter(s =>
+    s.nombre?.toLowerCase().includes(search.toLowerCase()) ||
+    s.direccion?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  const stats = {
+    total: sucursales.length,
+    activas: sucursales.filter(s => s.estado).length,
+    inactivas: sucursales.filter(s => !s.estado).length
+  }
+
+  const openModal = (s = null) => {
+    setEditingId(s?.idSucursal || null)
+    setForm(s || {})
+    setStatus(s ? !!s.estado : true)
+    setModalOpen(true)
   }
 
   const guardar = async () => {
-    try {
-      if (editando) {
-        await axios.put(`${API}/sucursales/${editando}`, form, { headers: getHeaders() })
-      } else {
-        await axios.post(`${API}/sucursales`, form, { headers: getHeaders() })
-      }
-      setForm({ nombre: '', direccion: '', telefono: '' })
-      setEditando(null)
-      setMostrarForm(false)
-      cargarSucursales()
-    } catch (error) {
-      console.error('Error:', error)
-    }
-  }
-
-  const editar = (s) => {
-    setForm({ nombre: s.nombre, direccion: s.direccion, telefono: s.telefono })
-    setEditando(s.idSucursal)
-    setMostrarForm(true)
+    if (!form.nombre) return showToast('El nombre es obligatorio', 'error')
+    const obj = { ...form, estado: status }
+    const url = `${API}/sucursales${editingId ? '/' + editingId : ''}`
+    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    showToast(editingId ? 'Actualizada ✓' : 'Creada ✓', 'success')
+    setModalOpen(false)
+    cargarDatos()
   }
 
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar sucursal?')) return
-    await axios.delete(`${API}/sucursales/${id}`, { headers: getHeaders() })
-    cargarSucursales()
+    await fetch(`${API}/sucursales/${id}`, { method: 'DELETE', headers: headers() })
+    showToast('Eliminada', 'error')
+    cargarDatos()
   }
 
   return (
-    <div style={styles.container}>
+    <div>
       <Sidebar />
-      <div style={styles.main}>
-        <div style={styles.topbar}>
-          <h1 style={styles.title}>🏪 Sucursales</h1>
-          <button style={styles.btnPrimary} onClick={() => { setMostrarForm(!mostrarForm); setEditando(null); setForm({ nombre: '', direccion: '', telefono: '' }) }}>
-            + Nueva Sucursal
-          </button>
+      <div className="main">
+        <div className="topbar">
+          <h1>🏪 Administración de Sucursales</h1>
+          <div style={{fontSize:'.85rem', color:'var(--muted)'}}>Vista Global de Administrador</div>
         </div>
+        <div className="content">
 
-        {mostrarForm && (
-          <div style={styles.form}>
-            <h3 style={{color:'white', marginTop:0}}>{editando ? 'Editar' : 'Nueva'} Sucursal</h3>
-            <input style={styles.input} placeholder="Nombre" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} />
-            <input style={styles.input} placeholder="Dirección" value={form.direccion} onChange={e => setForm({...form, direccion: e.target.value})} />
-            <input style={styles.input} placeholder="Teléfono" value={form.telefono} onChange={e => setForm({...form, telefono: e.target.value})} />
-            <div style={{display:'flex', gap:'8px'}}>
-              <button style={styles.btnPrimary} onClick={guardar}>Guardar</button>
-              <button style={styles.btnSecondary} onClick={() => setMostrarForm(false)}>Cancelar</button>
-            </div>
+          <div className="stats">
+            <div className="stat-card"><div className="stat-label">Total Sucursales</div><div className="stat-value" style={{color:'var(--primary)'}}>{stats.total}</div></div>
+            <div className="stat-card"><div className="stat-label">Operativas</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.activas}</div></div>
+            <div className="stat-card"><div className="stat-label">Inactivas</div><div className="stat-value" style={{color:'var(--muted)'}}>{stats.inactivas}</div></div>
           </div>
-        )}
 
-        <div style={styles.tabla}>
-          <div style={styles.tablaHeader}>
-            <span>Nombre</span>
-            <span>Dirección</span>
-            <span>Teléfono</span>
-            <span>Estado</span>
-            <span>Acciones</span>
-          </div>
-          {sucursales.map((s, i) => (
-            <div key={i} style={styles.tablaFila}>
-              <span>{s.nombre}</span>
-              <span>{s.direccion || '-'}</span>
-              <span>{s.telefono || '-'}</span>
-              <span style={{color: s.estado ? '#27ae60' : '#e74c3c'}}>{s.estado ? '✅ Activa' : '❌ Inactiva'}</span>
-              <span style={{display:'flex', gap:'8px'}}>
-                <button style={styles.btnEdit} onClick={() => editar(s)}>✏️</button>
-                <button style={styles.btnDelete} onClick={() => eliminar(s.idSucursal)}>🗑️</button>
-              </span>
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <input className="search-box" placeholder="🔍 Buscar por nombre o dirección..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-          ))}
+            <button className="btn btn-primary" onClick={() => openModal()}>+ Nueva Sucursal</button>
+          </div>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Sucursal</th><th>Contacto</th><th>Encargado</th><th>Estado</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan="5"><div className="empty-state">No se encontraron sucursales</div></td></tr>
+                ) : filtered.map(s => (
+                  <tr key={s.idSucursal}>
+                    <td>
+                      <div className="sucursal-name">{s.nombre}</div>
+                      <div className="sucursal-address">📍 {s.direccion}</div>
+                    </td>
+                    <td>📞 {s.telefono || '-'}</td>
+                    <td>👤 {s.encargado || '-'}</td>
+                    <td><span className={`badge ${s.estado ? 'badge-active' : 'badge-inactive'}`}>{s.estado ? 'Operativa' : 'Inactiva'}</span></td>
+                    <td>
+                      <div className="actions">
+                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(s)}>✏️ Editar</button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(s.idSucursal)}>🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay open">
+          <div className="modal">
+            <button className="modal-close" onClick={() => setModalOpen(false)}>✕</button>
+            <h2>{editingId ? 'Editar Sucursal' : 'Nueva Sucursal'}</h2>
+            <div className="form-group"><label>Nombre de la Sucursal</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
+            <div className="form-group"><label>Dirección</label><input className="form-control" value={form.direccion || ''} onChange={e => setForm({...form, direccion: e.target.value})} /></div>
+            <div className="form-row">
+              <div className="form-group"><label>Teléfono</label><input className="form-control" value={form.telefono || ''} onChange={e => setForm({...form, telefono: e.target.value})} /></div>
+              <div className="form-group"><label>Encargado / Gerente</label><input className="form-control" value={form.encargado || ''} onChange={e => setForm({...form, encargado: e.target.value})} /></div>
+            </div>
+            <div className="form-group">
+              <label>Estado Operativo</label>
+              <div className="status-toggle">
+                <div className={`status-opt yes ${status ? 'active' : ''}`} onClick={() => setStatus(true)}>✓ Activa</div>
+                <div className={`status-opt no ${!status ? 'active' : ''}`} onClick={() => setStatus(false)}>✕ Inactiva</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={guardar}>Guardar Sucursal</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
     </div>
   )
-}
-
-const styles = {
-  container: { display: 'flex', background: '#0d1117', minHeight: '100vh' },
-  main: { marginLeft: '240px', flex: 1, padding: '20px' },
-  topbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { color: 'white', margin: 0 },
-  btnPrimary: { padding: '8px 16px', background: '#4A90D9', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  btnSecondary: { padding: '8px 16px', background: '#30363d', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  btnEdit: { padding: '4px 8px', background: '#0f3460', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  btnDelete: { padding: '4px 8px', background: '#c0392b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  form: { background: '#16213e', borderRadius: '12px', padding: '20px', marginBottom: '20px' },
-  input: { width: '100%', padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', color: 'white', marginBottom: '12px', boxSizing: 'border-box' },
-  tabla: { background: '#16213e', borderRadius: '12px', overflow: 'hidden' },
-  tablaHeader: { display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '12px 20px', color: '#8b949e', fontSize: '13px', borderBottom: '1px solid #30363d' },
-  tablaFila: { display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', padding: '12px 20px', color: '#e6edf3', borderBottom: '1px solid #30363d', fontSize: '14px' }
 }
 
 export default Sucursales

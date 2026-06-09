@@ -1,128 +1,162 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import axios from 'axios'
-import bcrypt from 'bcryptjs'
 
 const API = 'http://localhost:3001/api'
-const getHeaders = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
+const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
-  const [form, setForm] = useState({ nombre: '', apellido: '', tipoUsuario: 'vendedor', password: '' })
-  const [mostrarForm, setMostrarForm] = useState(false)
-  const [editando, setEditando] = useState(null)
+  const [search, setSearch] = useState('')
+  const [filterRol, setFilterRol] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [form, setForm] = useState({})
+  const [rol, setRol] = useState('vendedor')
+  const [toast, setToast] = useState('')
 
-  useEffect(() => { cargarUsuarios() }, [])
+  useEffect(() => { cargarDatos() }, [])
 
-  const cargarUsuarios = async () => {
-    try {
-      const res = await axios.get(`${API}/usuarios`, { headers: getHeaders() })
-      setUsuarios(res.data)
-    } catch (error) {
-      console.error('Error:', error)
-    }
+  const showToast = (msg, type = '') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(''), 2800)
+  }
+
+  const cargarDatos = async () => {
+    const res = await fetch(`${API}/usuarios`, { headers: headers() })
+    setUsuarios(await res.json())
+  }
+
+  const getIniciales = (n, a) => (n?.charAt(0) + a?.charAt(0)).toUpperCase()
+
+  const filtered = usuarios.filter(u => {
+    const matchSearch = (u.nombre + ' ' + u.apellido).toLowerCase().includes(search.toLowerCase())
+    const matchRol = !filterRol || u.tipoUsuario === filterRol
+    return matchSearch && matchRol
+  })
+
+  const stats = {
+    total: usuarios.length,
+    admins: usuarios.filter(u => u.tipoUsuario === 'admin').length,
+    vendedores: usuarios.filter(u => u.tipoUsuario !== 'admin').length
+  }
+
+  const openModal = (u = null) => {
+    setEditingId(u?.idUsuario || null)
+    setForm(u ? { nombre: u.nombre, apellido: u.apellido } : {})
+    setRol(u?.tipoUsuario || 'vendedor')
+    setModalOpen(true)
   }
 
   const guardar = async () => {
-    try {
-      const datos = { ...form }
-      if (datos.password) {
-        datos.password = await bcrypt.hash(datos.password, 10)
-      }
-      if (editando) {
-        await axios.put(`${API}/usuarios/${editando}`, datos, { headers: getHeaders() })
-      } else {
-        await axios.post(`${API}/usuarios`, datos, { headers: getHeaders() })
-      }
-      setForm({ nombre: '', apellido: '', tipoUsuario: 'vendedor', password: '' })
-      setEditando(null)
-      setMostrarForm(false)
-      cargarUsuarios()
-    } catch (error) {
-      console.error('Error:', error)
-    }
-  }
-
-  const editar = (u) => {
-    setForm({ nombre: u.nombre, apellido: u.apellido, tipoUsuario: u.tipoUsuario, password: '' })
-    setEditando(u.idUsuario)
-    setMostrarForm(true)
+    if (!form.nombre || !form.apellido) return showToast('Nombre y apellido obligatorios', 'error')
+    if (!editingId && !form.password) return showToast('Debe asignar contraseña', 'error')
+    const obj = { ...form, tipoUsuario: rol }
+    const url = `${API}/usuarios${editingId ? '/' + editingId : ''}`
+    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    showToast(editingId ? 'Actualizado ✓' : 'Creado ✓', 'success')
+    setModalOpen(false)
+    cargarDatos()
   }
 
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar usuario?')) return
-    await axios.delete(`${API}/usuarios/${id}`, { headers: getHeaders() })
-    cargarUsuarios()
+    await fetch(`${API}/usuarios/${id}`, { method: 'DELETE', headers: headers() })
+    showToast('Eliminado', 'error')
+    cargarDatos()
   }
 
   return (
-    <div style={styles.container}>
+    <div>
       <Sidebar />
-      <div style={styles.main}>
-        <div style={styles.topbar}>
-          <h1 style={styles.title}>👥 Usuarios</h1>
-          <button style={styles.btnPrimary} onClick={() => { setMostrarForm(!mostrarForm); setEditando(null); setForm({ nombre: '', apellido: '', tipoUsuario: 'vendedor', password: '' }) }}>
-            + Nuevo Usuario
-          </button>
+      <div className="main">
+        <div className="topbar">
+          <h1>👥 Gestión de Usuarios</h1>
+          <div style={{fontSize:'.85rem', color:'var(--muted)'}}>Panel de Control de Accesos</div>
         </div>
+        <div className="content">
 
-        {mostrarForm && (
-          <div style={styles.form}>
-            <h3 style={{color:'white', marginTop:0}}>{editando ? 'Editar' : 'Nuevo'} Usuario</h3>
-            <input style={styles.input} placeholder="Nombre" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} />
-            <input style={styles.input} placeholder="Apellido" value={form.apellido} onChange={e => setForm({...form, apellido: e.target.value})} />
-            <select style={styles.input} value={form.tipoUsuario} onChange={e => setForm({...form, tipoUsuario: e.target.value})}>
-              <option value="vendedor">Vendedor</option>
-              <option value="admin">Admin</option>
-            </select>
-            <input style={styles.input} placeholder="Contraseña" type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
-            <div style={{display:'flex', gap:'8px'}}>
-              <button style={styles.btnPrimary} onClick={guardar}>Guardar</button>
-              <button style={styles.btnSecondary} onClick={() => setMostrarForm(false)}>Cancelar</button>
-            </div>
+          <div className="stats">
+            <div className="stat-card"><div className="stat-label">Total Usuarios</div><div className="stat-value">{stats.total}</div></div>
+            <div className="stat-card"><div className="stat-label">Administradores</div><div className="stat-value" style={{color:'var(--info)'}}>{stats.admins}</div></div>
+            <div className="stat-card"><div className="stat-label">Vendedores</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.vendedores}</div></div>
           </div>
-        )}
 
-        <div style={styles.tabla}>
-          <div style={styles.tablaHeader}>
-            <span>Nombre</span>
-            <span>Apellido</span>
-            <span>Tipo</span>
-            <span>Acciones</span>
-          </div>
-          {usuarios.map((u, i) => (
-            <div key={i} style={styles.tablaFila}>
-              <span>{u.nombre}</span>
-              <span>{u.apellido}</span>
-              <span style={{color: u.tipoUsuario === 'admin' ? '#4A90D9' : '#27ae60'}}>
-                {u.tipoUsuario === 'admin' ? '🔑 Admin' : '👤 Vendedor'}
-              </span>
-              <span style={{display:'flex', gap:'8px'}}>
-                <button style={styles.btnEdit} onClick={() => editar(u)}>✏️</button>
-                <button style={styles.btnDelete} onClick={() => eliminar(u.idUsuario)}>🗑️</button>
-              </span>
+          <div className="toolbar">
+            <div className="toolbar-left">
+              <input className="search-box" placeholder="🔍 Buscar por nombre o apellido..." value={search} onChange={e => setSearch(e.target.value)} />
+              <select className="filter-select" value={filterRol} onChange={e => setFilterRol(e.target.value)}>
+                <option value="">Todos los roles</option>
+                <option value="admin">Administradores</option>
+                <option value="vendedor">Vendedores</option>
+              </select>
             </div>
-          ))}
+            <button className="btn btn-primary" onClick={() => openModal()}>+ Nuevo Usuario</button>
+          </div>
+
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Usuario</th><th>Rol / Permisos</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan="4"><div className="empty-state">No se encontraron usuarios</div></td></tr>
+                ) : filtered.map(u => (
+                  <tr key={u.idUsuario}>
+                    <td style={{color:'var(--muted)'}}>#{u.idUsuario}</td>
+                    <td>
+                      <div className="user-name">
+                        <div className="user-avatar">{getIniciales(u.nombre, u.apellido)}</div>
+                        {u.nombre} {u.apellido}
+                      </div>
+                    </td>
+                    <td><span className={`badge ${u.tipoUsuario === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.tipoUsuario === 'admin' ? '👑 Admin' : '🛒 Vendedor'}</span></td>
+                    <td>
+                      <div className="actions">
+                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(u)}>✏️ Editar</button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(u.idUsuario)}>🗑️</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay open">
+          <div className="modal">
+            <button className="modal-close" onClick={() => setModalOpen(false)}>✕</button>
+            <h2>{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+            <div className="form-row">
+              <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
+              <div className="form-group"><label>Apellido</label><input className="form-control" value={form.apellido || ''} onChange={e => setForm({...form, apellido: e.target.value})} /></div>
+            </div>
+            <div className="form-group">
+              <label>Contraseña de Acceso</label>
+              <input className="form-control" type="password" placeholder="••••••••" value={form.password || ''} onChange={e => setForm({...form, password: e.target.value})} />
+              <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Dejar en blanco si no se desea modificar (al editar).</div>
+            </div>
+            <div className="form-group">
+              <label>Tipo de Usuario</label>
+              <div className="role-toggle">
+                <div className={`role-opt admin ${rol === 'admin' ? 'active' : ''}`} onClick={() => setRol('admin')}>👑 Admin</div>
+                <div className={`role-opt vendedor ${rol === 'vendedor' ? 'active' : ''}`} onClick={() => setRol('vendedor')}>🛒 Vendedor</div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={guardar}>Guardar Usuario</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
     </div>
   )
-}
-
-const styles = {
-  container: { display: 'flex', background: '#0d1117', minHeight: '100vh' },
-  main: { marginLeft: '240px', flex: 1, padding: '20px' },
-  topbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
-  title: { color: 'white', margin: 0 },
-  btnPrimary: { padding: '8px 16px', background: '#4A90D9', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  btnSecondary: { padding: '8px 16px', background: '#30363d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  btnEdit: { padding: '4px 8px', background: '#0f3460', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  btnDelete: { padding: '4px 8px', background: '#c0392b', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  form: { background: '#16213e', borderRadius: '12px', padding: '20px', marginBottom: '20px' },
-  input: { width: '100%', padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '8px', color: 'white', marginBottom: '12px', boxSizing: 'border-box' },
-  tabla: { background: '#16213e', borderRadius: '12px', overflow: 'hidden' },
-  tablaHeader: { display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', padding: '12px 20px', color: '#8b949e', fontSize: '13px', borderBottom: '1px solid #30363d' },
-  tablaFila: { display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', padding: '12px 20px', color: '#e6edf3', borderBottom: '1px solid #30363d', fontSize: '14px' }
 }
 
 export default Usuarios
