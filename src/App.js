@@ -12,8 +12,10 @@ import Mercaderia from './pages/Mercaderia'
 import Reportes from './pages/Reportes'
 import { isLoggedIn } from './services/auth'
 
-function PrivateRoute({ children }) {
-  return isLoggedIn() ? children : <Navigate to="/login" />
+function PrivateRoute({ children, adminOnly = false }) {
+  if (!isLoggedIn()) return <Navigate to="/login" />
+  if (adminOnly && localStorage.getItem('tipoUsuario') !== 'admin') return <Navigate to="/ventas" />
+  return children
 }
 
 function App() {
@@ -21,15 +23,15 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/ingredientes" element={<PrivateRoute><Ingredientes /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute adminOnly><Dashboard /></PrivateRoute>} />
+        <Route path="/ingredientes" element={<PrivateRoute adminOnly><Ingredientes /></PrivateRoute>} />
         <Route path="/ventas" element={<PrivateRoute><Ventas /></PrivateRoute>} />
-        <Route path="/sucursales" element={<PrivateRoute><Sucursales /></PrivateRoute>} />
-        <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+        <Route path="/sucursales" element={<PrivateRoute adminOnly><Sucursales /></PrivateRoute>} />
+        <Route path="/usuarios" element={<PrivateRoute adminOnly><Usuarios /></PrivateRoute>} />
         <Route path="/elaboraciones" element={<PrivateRoute><Elaboraciones /></PrivateRoute>} />
         <Route path="/recetas" element={<PrivateRoute><Recetas /></PrivateRoute>} />
-        <Route path="/mercaderia" element={<PrivateRoute><Mercaderia /></PrivateRoute>} />
-        <Route path="/reportes" element={<PrivateRoute><Reportes /></PrivateRoute>} />
+        <Route path="/mercaderia" element={<PrivateRoute adminOnly><Mercaderia /></PrivateRoute>} />
+        <Route path="/reportes" element={<PrivateRoute adminOnly><Reportes /></PrivateRoute>} />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>

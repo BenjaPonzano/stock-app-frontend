@@ -6,52 +6,51 @@ function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const path = location.pathname
+  const tipoUsuario = localStorage.getItem('tipoUsuario')
+  const nombre = localStorage.getItem('nombre') || 'Usuario'
+  const isAdmin = tipoUsuario === 'admin'
+
+  const navItem = (to, icon, label) => (
+    <div className={`nav-item ${path === to ? 'active' : ''}`} onClick={() => navigate(to)}>
+      <span className="icon">{icon}</span> {label}
+    </div>
+  )
 
   return (
     <div className="sidebar">
       <div className="sidebar-logo"><span>🍽️</span> StockGastro</div>
       <nav>
-        <div className="nav-section">Principal</div>
-        <div className={`nav-item ${path === '/dashboard' ? 'active' : ''}`} onClick={() => navigate('/dashboard')}>
-          <span className="icon">📊</span> Dashboard
-        </div>
-
-        <div className="nav-section">Inventario</div>
-        <div className={`nav-item ${path === '/ingredientes' ? 'active' : ''}`} onClick={() => navigate('/ingredientes')}>
-          <span className="icon">📦</span> Productos e Ingredientes
-        </div>
-        <div className={`nav-item ${path === '/mercaderia' ? 'active' : ''}`} onClick={() => navigate('/mercaderia')}>
-          <span className="icon">🛒</span> Ingreso de Mercadería
-        </div>
+        {isAdmin && (
+          <>
+            <div className="nav-section">Principal</div>
+            {navItem('/dashboard', '📊', 'Dashboard')}
+            <div className="nav-section">Inventario</div>
+            {navItem('/ingredientes', '📦', 'Productos e Ingredientes')}
+            {navItem('/mercaderia', '🛒', 'Ingreso de Mercadería')}
+          </>
+        )}
 
         <div className="nav-section">Operaciones</div>
-        <div className={`nav-item ${path === '/ventas' ? 'active' : ''}`} onClick={() => navigate('/ventas')}>
-          <span className="icon">💰</span> Ventas
-        </div>
-        <div className={`nav-item ${path === '/recetas' ? 'active' : ''}`} onClick={() => navigate('/recetas')}>
-          <span className="icon">📋</span> Recetas
-        </div>
-        <div className={`nav-item ${path === '/elaboraciones' ? 'active' : ''}`} onClick={() => navigate('/elaboraciones')}>
-          <span className="icon">👨‍🍳</span> Elaboraciones
-        </div>
+        {navItem('/ventas', '💰', 'Ventas')}
+        {navItem('/recetas', '📋', 'Recetas')}
+        {navItem('/elaboraciones', '👨‍🍳', 'Elaboraciones')}
 
-        <div className="nav-section">Administración</div>
-        <div className={`nav-item ${path === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
-          <span className="icon">👥</span> Usuarios
-        </div>
-        <div className={`nav-item ${path === '/sucursales' ? 'active' : ''}`} onClick={() => navigate('/sucursales')}>
-          <span className="icon">🏪</span> Sucursales
-        </div>
-        <div className={`nav-item ${path === '/reportes' ? 'active' : ''}`} onClick={() => navigate('/reportes')}>
-          <span className="icon">📈</span> Reportes
-        </div>
+        {isAdmin && (
+          <>
+            <div className="nav-section">Administración</div>
+            {navItem('/usuarios', '👥', 'Usuarios')}
+            {navItem('/sucursales', '🏪', 'Sucursales')}
+            {navItem('/reportes', '📈', 'Reportes')}
+          </>
+        )}
       </nav>
       <div className="sidebar-footer">
         <div className="user-badge">
-          <div className="avatar">JG</div>
+          <div className="avatar">{nombre.charAt(0).toUpperCase()}</div>
           <div>
-            <div style={{color:'#fff', fontSize:'.85rem'}}>Juan García</div>
-            <div onClick={logout} style={{cursor:'pointer', color:'rgba(255,255,255,0.5)', fontSize:'.8rem'}}>Cerrar sesión</div>
+            <div style={{color:'#fff', fontSize:'.85rem'}}>{nombre}</div>
+            <div style={{color:'rgba(255,255,255,0.5)', fontSize:'.75rem'}}>{isAdmin ? 'Administrador' : 'Vendedor'}</div>
+            <div onClick={logout} style={{cursor:'pointer', color:'rgba(255,255,255,0.4)', fontSize:'.75rem', marginTop:'2px'}}>Cerrar sesión</div>
           </div>
         </div>
       </div>

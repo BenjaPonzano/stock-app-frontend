@@ -56,8 +56,16 @@ function Ingredientes() {
 
   const saveItem = async () => {
     if (!form.nombre) return showToast('Nombre obligatorio', 'error')
+    const token = localStorage.getItem('token')
     const url = `${API}/${tab}${editingId ? '/' + editingId : ''}`
-    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+    await fetch(url, {
+      method: editingId ? 'PUT' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify(form)
+    })
     showToast('Guardado ✓', 'success')
     setModalOpen(false)
     cargarDatos()
@@ -65,7 +73,11 @@ function Ingredientes() {
 
   const deleteItem = async (id) => {
     if (!window.confirm('¿Eliminar?')) return
-    await fetch(`${API}/${tab}/${id}`, { method: 'DELETE' })
+    const token = localStorage.getItem('token')
+    await fetch(`${API}/${tab}/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
     showToast('Eliminado', 'error')
     cargarDatos()
   }
@@ -116,13 +128,13 @@ function Ingredientes() {
               <thead>
                 <tr>
                   <th>Nombre</th><th>Categoría</th><th>Stock</th><th>Stock Mín.</th>
-                  {isP ? <><th>Precio Venta</th><th>Precio Costo</th></> : <th>Precio</th>}
+                  {isP ? <th>Precio Venta</th> : <th>Precio</th>}
                   <th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan="8"><div className="empty-state">No se encontraron resultados</div></td></tr>
+                  <tr><td colSpan="7"><div className="empty-state">No se encontraron resultados</div></td></tr>
                 ) : filtered.map(item => {
                   const s = getStockStatus(item)
                   const badgeMap = { ok: ['badge-ok', '✓ Normal'], low: ['badge-low', '⚠ Bajo'], out: ['badge-out', '✕ Sin Stock'] }
@@ -139,7 +151,7 @@ function Ingredientes() {
                         </div>
                       </td>
                       <td style={{color:'var(--muted)'}}>{item.stockMin} {item.unidad}</td>
-                      {isP ? <><td>${item.precioVenta?.toLocaleString()}</td><td>${item.precioCompra?.toLocaleString()}</td></> : <td>${item.precio?.toLocaleString()}/{item.unidad}</td>}
+                      {isP ? <td>${item.precioVenta?.toLocaleString()}</td> : <td>${item.precio?.toLocaleString()}/{item.unidad}</td>}
                       <td><span className={`badge ${badgeMap[s][0]}`}>{badgeMap[s][1]}</span></td>
                       <td>
                         <div className="actions">
@@ -181,12 +193,15 @@ function Ingredientes() {
               <div className="form-group"><label>Stock mínimo</label><input className="form-control" type="number" value={form.stockMin || 0} onChange={e => setForm({...form, stockMin: +e.target.value})} /></div>
             </div>
             {isP ? (
-              <div className="form-row">
-                <div className="form-group"><label>Precio Venta</label><input className="form-control" type="number" value={form.precioVenta || 0} onChange={e => setForm({...form, precioVenta: +e.target.value})} /></div>
-                <div className="form-group"><label>Precio Costo</label><input className="form-control" type="number" value={form.precioCompra || 0} onChange={e => setForm({...form, precioCompra: +e.target.value})} /></div>
+              <div className="form-group">
+                <label>Precio Venta</label>
+                <input className="form-control" type="number" value={form.precioVenta || 0} onChange={e => setForm({...form, precioVenta: +e.target.value})} />
               </div>
             ) : (
-              <div className="form-group"><label>Precio</label><input className="form-control" type="number" value={form.precio || 0} onChange={e => setForm({...form, precio: +e.target.value})} /></div>
+              <div className="form-group">
+                <label>Precio de Compra</label>
+                <input className="form-control" type="number" value={form.precio || 0} onChange={e => setForm({...form, precio: +e.target.value})} />
+              </div>
             )}
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
