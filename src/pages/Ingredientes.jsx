@@ -72,6 +72,7 @@ function Ingredientes() {
   }
 
   const deleteItem = async (id) => {
+    console.log('ID a eliminar:', id)
     if (!window.confirm('¿Eliminar?')) return
     const token = localStorage.getItem('token')
     await fetch(`${API}/${tab}/${id}`, {
@@ -155,8 +156,15 @@ function Ingredientes() {
                       <td><span className={`badge ${badgeMap[s][0]}`}>{badgeMap[s][1]}</span></td>
                       <td>
                         <div className="actions">
-                          <button className="btn btn-ghost btn-sm" onClick={() => openModal(item)}>✏️</button>
-                          <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => deleteItem(item.id)}>🗑️</button>
+                          <button 
+                            className="btn btn-ghost btn-sm" 
+                            onClick={(e) => { e.stopPropagation(); openModal(item) }}
+                          >✏️</button>
+                          <button 
+                            className="btn btn-sm" 
+                            style={{background:'#fadbd8', color:'#c0392b'}} 
+                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }}
+                          >🗑️</button>
                         </div>
                       </td>
                     </tr>
