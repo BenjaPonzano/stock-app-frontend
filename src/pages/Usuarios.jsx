@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
+import { API } from '../services/api'
 
-const API = 'http://localhost:3001/api'
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
 function Usuarios() {

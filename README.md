@@ -1,4 +1,34 @@
-# Getting Started with Create React App
+# stock-app-frontend
+
+Frontend - Sistema de stock TP DSW. App en React (Create React App) que consume
+la API de [stock-app-backend](https://github.com/BenjaPonzano/stock-app-backend).
+
+## Puesta en marcha
+
+```bash
+npm install
+npm start
+```
+
+Queda en `http://localhost:3000`. **El backend tiene que estar corriendo en
+`http://localhost:3001`**, si no el login y todas las pantallas fallan.
+
+Si hace falta apuntar a otra URL, copiar `.env.example` como `.env` y cambiar
+`REACT_APP_API_URL`. La URL vive en un solo lugar: `src/services/api.js`.
+
+## Estructura
+
+- `src/pages/` - una pantalla por ruta
+- `src/components/` - componentes compartidos (Sidebar)
+- `src/services/api.js` - URL base del backend y llamados compartidos
+- `src/services/auth.js` - login, logout y lectura del token de localStorage
+- `public/CSS/style.css` - estilos globales, linkeados desde `public/index.html`
+
+Las rutas y quien puede entrar a cada una estan definidas en `src/App.js`.
+
+---
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
