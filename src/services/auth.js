@@ -1,6 +1,5 @@
 import axios from 'axios'
-
-const API = 'http://localhost:3001/api'
+import { API } from './api'
 
 export const login = async (nombre, password) => {
   const res = await axios.post(`${API}/auth/login`, { nombre, password })
