@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -17,8 +18,9 @@ function Mercaderia() {
   const [histSearch, setHistSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -27,13 +29,16 @@ function Mercaderia() {
 
   const cargarDatos = async () => {
     const [resIng, resProd, resCompras] = await Promise.all([
-      fetch(`${API}/ingredientes`),
-      fetch(`${API}/productos`),
-      fetch(`${API}/compras`, { headers: headers() })
+      fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
+      fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
+      fetch(`${API}/compras?sucursal=${sucursalActual}`, { headers: headers() })
     ])
-    setCatalogoIng(await resIng.json())
-    setCatalogoProd(await resProd.json())
-    setHistorial(await resCompras.json())
+    const ing = await resIng.json()
+    const prod = await resProd.json()
+    const compras = await resCompras.json()
+    setCatalogoIng(Array.isArray(ing) ? ing : [])
+    setCatalogoProd(Array.isArray(prod) ? prod : [])
+    setHistorial(Array.isArray(compras) ? compras : [])
   }
 
   const catalogo = tipo === 'ingrediente' ? catalogoIng : catalogoProd
@@ -65,7 +70,7 @@ function Mercaderia() {
       const res = await fetch(`${API}/compras`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers() },
-        body: JSON.stringify({ ...form, items: compraItems })
+        body: JSON.stringify({ ...form, items: compraItems, idSucursal: sucursalActual })
       })
       if (res.ok) {
         showToast('Ingreso registrado ✓', 'success')
@@ -95,7 +100,17 @@ function Mercaderia() {
       <div className="main">
         <div className="topbar">
           <h1>🛒 Ingreso de Mercadería</h1>
-          <div className="sucursal-badge">🏪 Sucursal Centro ▾</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 

@@ -1,16 +1,19 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../services/auth'
+import { useSucursal } from '../contexts/SucursalContext'
 
 function Login() {
   const [nombre, setNombre] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { cargarSucursales } = useSucursal()
 
   const handleLogin = async () => {
     try {
       await login(nombre, password)
+      cargarSucursales()
       navigate('/dashboard')
     } catch (err) {
       setError('Usuario o contraseña incorrectos')

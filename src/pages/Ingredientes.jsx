@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
-
+import { useSucursal } from '../contexts/SucursalContext'
 
 function Ingredientes() {
   const [data, setData] = useState({ productos: [], ingredientes: [] })
@@ -13,13 +13,15 @@ function Ingredientes() {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({})
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
+  
 
-  useEffect(() => { cargarDatos() }, [tab])
+  useEffect(() => { cargarDatos() }, [tab, sucursalActual])
 
   const cargarDatos = async () => {
-    const res = await fetch(`${API}/${tab}`)
+    const res = await fetch(`${API}/${tab}?sucursal=${sucursalActual}`)
     const items = await res.json()
-    setData(prev => ({ ...prev, [tab]: items }))
+    setData(prev => ({ ...prev, [tab]: Array.isArray(items) ? items : [] }))
   }
 
   const showToast = (msg, type = '') => {
@@ -64,7 +66,7 @@ function Ingredientes() {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + token
       },
-      body: JSON.stringify(form)
+        body: JSON.stringify({ ...form, idSucursal: form.idSucursal || sucursalActual })
     })
     showToast('Guardado ✓', 'success')
     setModalOpen(false)
@@ -93,7 +95,17 @@ function Ingredientes() {
       <div className="main">
         <div className="topbar">
           <h1>📦 Productos e Ingredientes</h1>
-          <div className="sucursal-badge">🏪 Sucursal Centro ▾</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 

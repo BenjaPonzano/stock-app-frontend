@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 const pagoLabels = { ef: 'Efectivo', mp: 'Mercado Pago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' }
@@ -20,8 +21,9 @@ function Ventas() {
   const [ticket, setTicket] = useState(null)
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -31,12 +33,13 @@ function Ventas() {
   const cargarDatos = async () => {
     try {
       const [resP, resV] = await Promise.all([
-        fetch(`${API}/productos`),
-        fetch(`${API}/ventas`, { headers: headers() })
+        fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/ventas?sucursal=${sucursalActual}`, { headers: headers() })
       ])
-      setProductos(await resP.json())
+      const productos = await resP.json()
+      setProductos(Array.isArray(productos) ? productos : [])
       const ventas = await resV.json()
-      setHistorial(ventas.map(v => ({
+      setHistorial((Array.isArray(ventas) ? ventas : []).map(v => ({
         id: 'V-' + String(v.idCompra).padStart(4, '0'),
         idCompra: v.idCompra,
         fecha: v.fecha,
@@ -91,7 +94,7 @@ function Ventas() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers() },
         body: JSON.stringify({
-          tipoPago: pago, descuento, total,
+          tipoPago: pago, descuento, total, idSucursal: sucursalActual,
           items: carrito.map(i => ({ idProducto: i.id, cant: i.cant, precioUnitario: i.precio }))
         })
       })
@@ -121,7 +124,17 @@ function Ventas() {
       <div className="main">
         <div className="topbar">
           <h1>💰 Ventas</h1>
-          <div className="sucursal-badge">🏪 Sucursal Centro ▾</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 
