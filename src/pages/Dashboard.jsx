@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getVentas, getCompras, getElaboraciones, getProductos, getIngredientes } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 function Dashboard() {
   const [ventasHoy, setVentasHoy] = useState(0)
@@ -12,6 +13,7 @@ function Dashboard() {
   const [topProductos, setTopProductos] = useState([])
   const [stockCritico, setStockCritico] = useState([])
   const [actividad, setActividad] = useState([])
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
   const getFechaLocal = () => {
     const d = new Date()
@@ -19,12 +21,12 @@ function Dashboard() {
     return d.toISOString().split('T')[0]
   }
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const cargarDatos = async () => {
     try {
       const [resV, resC, resE, resP, resI] = await Promise.all([
-        getVentas(), getCompras(), getElaboraciones(), getProductos(), getIngredientes()
+        getVentas(sucursalActual), getCompras(sucursalActual), getElaboraciones(sucursalActual), getProductos(sucursalActual), getIngredientes(sucursalActual)
       ])
       const ventas = resV.data
       const compras = resC.data
@@ -100,7 +102,17 @@ function Dashboard() {
       <div className="main">
         <div className="topbar">
           <h1>📊 Panel General</h1>
-          <div className="sucursal-badge" onClick={cargarDatos}>🔄 Actualizar</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 

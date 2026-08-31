@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -21,8 +22,9 @@ function Reportes() {
   const [r4Search, setR4Search] = useState('')
   const [r4Fecha, setR4Fecha] = useState('')
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -32,17 +34,22 @@ function Reportes() {
   const cargarDatos = async () => {
     try {
       const [resP, resI, resC, resE, resV] = await Promise.all([
-        fetch(`${API}/productos`),
-        fetch(`${API}/ingredientes`),
-        fetch(`${API}/compras`, { headers: headers() }),
-        fetch(`${API}/elaboraciones`, { headers: headers() }),
-        fetch(`${API}/ventas`, { headers: headers() })
+        fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/compras?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/elaboraciones?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/ventas?sucursal=${sucursalActual}`, { headers: headers() })
       ])
-      setProductos(await resP.json())
-      setIngredientes(await resI.json())
-      setCompras(await resC.json())
-      setElaboraciones(await resE.json())
-      setVentas(await resV.json())
+      const productos = await resP.json()
+      const ingredientes = await resI.json()
+      const compras = await resC.json()
+      const elaboraciones = await resE.json()
+      const ventas = await resV.json()
+      setProductos(Array.isArray(productos) ? productos : [])
+      setIngredientes(Array.isArray(ingredientes) ? ingredientes : [])
+      setCompras(Array.isArray(compras) ? compras : [])
+      setElaboraciones(Array.isArray(elaboraciones) ? elaboraciones : [])
+      setVentas(Array.isArray(ventas) ? ventas : [])
       showToast('Datos actualizados ✓', 'success')
     } catch (e) {
       showToast('Error al conectar', 'error')
@@ -101,7 +108,17 @@ function Reportes() {
       <div className="main">
         <div className="topbar">
           <h1>📈 Reportes y Estadísticas</h1>
-          <div className="sucursal-badge" onClick={cargarDatos}>🔄 Actualizar Datos</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 

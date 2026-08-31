@@ -1,6 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { logout } from '../services/auth'
+import { useSucursal } from '../contexts/SucursalContext'
 
 function Sidebar() {
   const navigate = useNavigate()
@@ -9,7 +10,8 @@ function Sidebar() {
   const tipoUsuario = localStorage.getItem('tipoUsuario')
   const nombre = localStorage.getItem('nombre') || 'Usuario'
   const isAdmin = tipoUsuario === 'admin'
-
+  const { sucursales, sucursalActual, cambiarSucursal, esAdmin } = useSucursal()
+  
   const navItem = (to, icon, label) => (
     <div className={`nav-item ${path === to ? 'active' : ''}`} onClick={() => navigate(to)}>
       <span className="icon">{icon}</span> {label}

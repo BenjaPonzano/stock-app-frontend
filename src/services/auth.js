@@ -6,6 +6,7 @@ export const login = async (nombre, password) => {
   localStorage.setItem('token', res.data.token)
   localStorage.setItem('tipoUsuario', res.data.tipoUsuario)
   localStorage.setItem('nombre', res.data.nombre)
+  localStorage.setItem('idSucursalUsuario', res.data.idSucursal || '')
   return res.data
 }
 
@@ -13,6 +14,8 @@ export const logout = () => {
   localStorage.removeItem('token')
   localStorage.removeItem('tipoUsuario')
   localStorage.removeItem('nombre')
+  localStorage.removeItem('idSucursalUsuario')
+  localStorage.removeItem('idSucursal')
   window.location.href = '/login'
 }
 

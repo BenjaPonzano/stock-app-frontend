@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -14,8 +15,9 @@ function Recetas() {
   const [form, setForm] = useState({ nombre: '', descripcion: '', idProducto: '', cantPorLote: 1 })
   const [ingRows, setIngRows] = useState([{ idIngrediente: '', cant: '', unidad: '' }])
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -25,12 +27,15 @@ function Recetas() {
   const cargarDatos = async () => {
     const [resR, resP, resI] = await Promise.all([
       fetch(`${API}/recetas`, { headers: headers() }),
-      fetch(`${API}/productos`),
-      fetch(`${API}/ingredientes`)
+      fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
+      fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() })
     ])
-    setRecetas(await resR.json())
-    setProductos(await resP.json())
-    setIngredientes(await resI.json())
+    const recetas = await resR.json()
+    const productos = await resP.json()
+    const ingredientes = await resI.json()
+    setRecetas(Array.isArray(recetas) ? recetas : [])
+    setProductos(Array.isArray(productos) ? productos : [])
+    setIngredientes(Array.isArray(ingredientes) ? ingredientes : [])
   }
 
   const filtered = recetas.filter(r =>
@@ -95,7 +100,17 @@ function Recetas() {
       <div className="main">
         <div className="topbar">
           <h1>📋 Recetas</h1>
-          <div className="sucursal-badge">🏪 Sucursal Centro ▾</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 

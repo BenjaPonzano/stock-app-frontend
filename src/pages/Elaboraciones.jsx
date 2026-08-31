@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -16,13 +17,14 @@ function Elaboraciones() {
   const [histReceta, setHistReceta] = useState('')
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
   useEffect(() => {
     const now = new Date()
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     setFecha(now.toISOString().slice(0, 16))
     cargarDatos()
-  }, [])
+  }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -32,17 +34,18 @@ function Elaboraciones() {
   const cargarDatos = async () => {
     const [resR, resI, resE] = await Promise.all([
       fetch(`${API}/recetas`, { headers: headers() }),
-      fetch(`${API}/ingredientes`),
-      fetch(`${API}/elaboraciones`, { headers: headers() })
+      fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
+      fetch(`${API}/elaboraciones?sucursal=${sucursalActual}`, { headers: headers() })
     ])
-    setRecetas(await resR.json())
+    const recetas = await resR.json()
+    setRecetas(Array.isArray(recetas) ? recetas : [])
     const ing = await resI.json()
     const stockMap = {}
-    ing.forEach(i => stockMap[i.id] = { stock: i.stock, nombre: i.nombre, unidad: i.unidad })
+    if (Array.isArray(ing)) ing.forEach(i => stockMap[i.id] = { stock: i.stock, nombre: i.nombre, unidad: i.unidad })
     setStockIngredientes(stockMap)
-    setHistorial(await resE.json())
+    const elaboraciones = await resE.json()
+    setHistorial(Array.isArray(elaboraciones) ? elaboraciones : [])
   }
-
   const getConsumo = () => {
     if (!selectedReceta) return []
     return selectedReceta.ingredientes?.map(ing => {
@@ -69,6 +72,7 @@ function Elaboraciones() {
       idReceta: selectedReceta.id,
       recetaNombre: selectedReceta.nombre,
       idProducto: selectedReceta.idProducto,
+      idSucursal: sucursalActual,
       cantidad,
       obs,
       ingredientesConsumidos: selectedReceta.ingredientes?.map(i => ({
@@ -114,7 +118,17 @@ function Elaboraciones() {
       <div className="main">
         <div className="topbar">
           <h1>👨‍🍳 Elaboraciones Internas</h1>
-          <div className="sucursal-badge">🏪 Sucursal Centro ▾</div>
+          {esAdmin ? (
+            <select
+              className="sucursal-badge"
+              value={sucursalActual || ''}
+              onChange={e => cambiarSucursal(+e.target.value)}
+            >
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
+            </select>
+          ) : (
+            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+          )}
         </div>
         <div className="content">
 
