@@ -32,20 +32,20 @@ function Sucursales() {
 
   const stats = {
     total: sucursales.length,
-    activas: sucursales.filter(s => s.estado).length,
-    inactivas: sucursales.filter(s => !s.estado).length
+    activas: sucursales.filter(s => s.activa).length,
+    inactivas: sucursales.filter(s => !s.activa).length
   }
 
   const openModal = (s = null) => {
-    setEditingId(s?.idSucursal || null)
+    setEditingId(s?.id || null)
     setForm(s || {})
-    setStatus(s ? !!s.estado : true)
+    setStatus(s ? !!s.activa : true)
     setModalOpen(true)
   }
 
   const guardar = async () => {
     if (!form.nombre) return showToast('El nombre es obligatorio', 'error')
-    const obj = { ...form, estado: status }
+    const obj = { ...form, activa: status }
     const url = `${API}/sucursales${editingId ? '/' + editingId : ''}`
     await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
     showToast(editingId ? 'Actualizada ✓' : 'Creada ✓', 'success')
@@ -92,18 +92,18 @@ function Sucursales() {
                 {filtered.length === 0 ? (
                   <tr><td colSpan="5"><div className="empty-state">No se encontraron sucursales</div></td></tr>
                 ) : filtered.map(s => (
-                  <tr key={s.idSucursal}>
+                  <tr key={s.id}>
                     <td>
                       <div className="sucursal-name">{s.nombre}</div>
                       <div className="sucursal-address">📍 {s.direccion}</div>
                     </td>
                     <td>📞 {s.telefono || '-'}</td>
                     <td>👤 {s.encargado || '-'}</td>
-                    <td><span className={`badge ${s.estado ? 'badge-active' : 'badge-inactive'}`}>{s.estado ? 'Operativa' : 'Inactiva'}</span></td>
+                    <td><span className={`badge ${s.activa ? 'badge-active' : 'badge-inactive'}`}>{s.activa ? 'Operativa' : 'Inactiva'}</span></td>
                     <td>
                       <div className="actions">
                         <button className="btn btn-ghost btn-sm" onClick={() => openModal(s)}>✏️ Editar</button>
-                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(s.idSucursal)}>🗑️</button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(s.id)}>🗑️</button>
                       </div>
                     </td>
                   </tr>

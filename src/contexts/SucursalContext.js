@@ -28,10 +28,11 @@ export function SucursalProvider({ children }) {
       .then(res => res.json())
       .then(data => {
         if (!Array.isArray(data)) return
-        setSucursales(data)
+        const activas = data.filter(s => s.activa)
+        setSucursales(activas)
         if (esAdmin) {
           const guardada = localStorage.getItem('idSucursal')
-          if (!guardada && data.length > 0) cambiarSucursal(data[0].id)
+          if (!guardada && activas.length > 0) cambiarSucursal(activas[0].id)
         }
       })
   }

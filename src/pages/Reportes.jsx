@@ -212,10 +212,10 @@ function Reportes() {
               </div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Ítems</th></tr></thead>
+                  <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Ítems</th><th>Forzada</th></tr></thead>
                   <tbody>
                     {rep3.length === 0 ? (
-                      <tr><td colSpan="6"><div className="empty-state">No hay ventas registradas</div></td></tr>
+                      <tr><td colSpan="7"><div className="empty-state">No hay ventas registradas</div></td></tr>
                     ) : rep3.map((v, i) => {
                       const idStr = 'V-' + String(v.idCompra).padStart(4, '0')
                       return (
@@ -226,6 +226,7 @@ function Reportes() {
                           <td>{v.descuento > 0 ? `${v.descuento}%` : '-'}</td>
                           <td><strong>${v.total?.toLocaleString()}</strong></td>
                           <td>{(v.items || []).length} ítem(s)</td>
+                          <td>{v.forzada ? <span className="badge badge-warning">⚠ Forzada</span> : '-'}</td>
                         </tr>
                       )
                     })}

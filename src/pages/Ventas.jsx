@@ -21,6 +21,7 @@ function Ventas() {
   const [ticket, setTicket] = useState(null)
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const [stockWarning, setStockWarning] = useState(null)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
   useEffect(() => { cargarDatos() }, [sucursalActual])
@@ -64,11 +65,9 @@ function Ventas() {
   })
 
   const addToCart = (prod) => {
-    if (prod.stock === 0) return
     setCarrito(prev => {
       const ex = prev.find(i => i.id === prod.id)
       if (ex) {
-        if (ex.cant >= prod.stock) { showToast('No hay más stock', 'error'); return prev }
         return prev.map(i => i.id === prod.id ? { ...i, cant: i.cant + 1, sub: (i.cant + 1) * i.precio } : i)
       }
       return [...prev, { id: prod.id, nombre: prod.nombre, emoji: prod.emoji || '🍽️', cant: 1, precio: prod.precioVenta, sub: prod.precioVenta }]
@@ -87,17 +86,22 @@ function Ventas() {
   const total = subtotal - descMonto
   const vuelto = conCuanto ? +conCuanto - total : null
 
-  const registrarVenta = async () => {
+  const registrarVenta = async (forzar = false) => {
     if (carrito.length === 0) return showToast('El carrito está vacío', 'error')
     try {
       const res = await fetch(`${API}/ventas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers() },
         body: JSON.stringify({
-          tipoPago: pago, descuento, total, idSucursal: sucursalActual,
+          tipoPago: pago, descuento, total, idSucursal: sucursalActual, forzada: forzar,
           items: carrito.map(i => ({ idProducto: i.id, cant: i.cant, precioUnitario: i.precio }))
         })
       })
+      if (res.status === 409) {
+        const data = await res.json()
+        setStockWarning(data.items || [])
+        return
+      }
       if (!res.ok) throw new Error()
       const venta = await res.json()
       const newId = 'V-' + String(venta.idCompra).padStart(4, '0')
@@ -105,7 +109,8 @@ function Ventas() {
       setCarrito([])
       setDescuento(0)
       setConCuanto('')
-      showToast(`Venta ${newId} registrada ✓`, 'success')
+      setStockWarning(null)
+      showToast(`Venta ${newId} registrada ✓${forzar ? ' (forzada)' : ''}`, 'success')
       cargarDatos()
     } catch (e) {
       showToast('Error al registrar la venta', 'error')
@@ -224,7 +229,7 @@ function Ventas() {
                     </div>
                   )}
 
-                  <button className="btn btn-success btn-full" onClick={registrarVenta}>✅ Confirmar Venta</button>
+                  <button className="btn btn-success btn-full" onClick={() => registrarVenta()}>✅ Confirmar Venta</button>
 
                   {ticket && (
                     <div className="ticket-box show">
@@ -301,6 +306,27 @@ function Ventas() {
             <div className="modal-total-box">
               <div><div style={{fontSize:'.78rem', color:'var(--muted)'}}>Descuento</div><div>{modal.descuento > 0 ? `${modal.descuento}%` : 'Sin descuento'}</div></div>
               <div style={{textAlign:'right'}}><div style={{fontSize:'.78rem', color:'var(--muted)'}}>Total cobrado</div><div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--success)'}}>${modal.total?.toLocaleString()}</div></div>
+            </div>
+          </div>
+        </div>
+      )}
+            {stockWarning && (
+        <div className="modal-overlay open">
+          <div className="modal">
+            <button className="modal-close" onClick={() => setStockWarning(null)}>✕</button>
+            <h2>⚠️ Stock insuficiente</h2>
+            <p style={{color:'var(--muted)', marginBottom:'12px'}}>Estos productos no tienen stock suficiente:</p>
+            <table className="detail-table">
+              <thead><tr><th>Producto</th><th>Stock disponible</th><th>Cantidad pedida</th></tr></thead>
+              <tbody>
+                {stockWarning.map((it, idx) => (
+                  <tr key={idx}><td>{it.nombre}</td><td>{it.stockDisponible}</td><td>{it.cantPedida}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setStockWarning(null)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={() => registrarVenta(true)}>Forzar venta igual</button>
             </div>
           </div>
         </div>
