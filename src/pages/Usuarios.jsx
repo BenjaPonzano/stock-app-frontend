@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
+import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -13,6 +14,7 @@ function Usuarios() {
   const [form, setForm] = useState({})
   const [rol, setRol] = useState('vendedor')
   const [toast, setToast] = useState('')
+  const { sucursales } = useSucursal()
 
   useEffect(() => { cargarDatos() }, [])
 
@@ -42,7 +44,7 @@ function Usuarios() {
 
   const openModal = (u = null) => {
     setEditingId(u?.idUsuario || null)
-    setForm(u ? { nombre: u.nombre, apellido: u.apellido } : {})
+    setForm(u ? { nombre: u.nombre, apellido: u.apellido, idSucursal: u.idSucursal || '' } : { idSucursal: '' })
     setRol(u?.tipoUsuario || 'vendedor')
     setModalOpen(true)
   }
@@ -50,6 +52,7 @@ function Usuarios() {
   const guardar = async () => {
     if (!form.nombre || !form.apellido) return showToast('Nombre y apellido obligatorios', 'error')
     if (!editingId && !form.password) return showToast('Debe asignar contraseña', 'error')
+    if (rol === 'vendedor' && !form.idSucursal) return showToast('Seleccioná la sucursal del vendedor', 'error')
     const obj = { ...form, tipoUsuario: rol }
     const url = `${API}/usuarios${editingId ? '/' + editingId : ''}`
     await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
@@ -146,6 +149,15 @@ function Usuarios() {
                 <div className={`role-opt vendedor ${rol === 'vendedor' ? 'active' : ''}`} onClick={() => setRol('vendedor')}>🛒 Vendedor</div>
               </div>
             </div>
+            {rol === 'vendedor' && (
+            <div className="form-group">
+              <label>Sucursal Asignada</label>
+              <select className="form-control" value={form.idSucursal || ''} onChange={e => setForm({...form, idSucursal: +e.target.value})}>
+                <option value="">— Seleccioná una sucursal —</option>
+                {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              </select>
+            </div>
+          )}
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={guardar}>Guardar Usuario</button>
