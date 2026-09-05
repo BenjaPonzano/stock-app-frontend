@@ -33,7 +33,7 @@ function Elaboraciones() {
 
   const cargarDatos = async () => {
     const [resR, resI, resE] = await Promise.all([
-      fetch(`${API}/recetas`, { headers: headers() }),
+      fetch(`${API}/recetas?sucursal=${sucursalActual}`, { headers: headers() }),
       fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
       fetch(`${API}/elaboraciones?sucursal=${sucursalActual}`, { headers: headers() })
     ])
