@@ -14,9 +14,11 @@ function Recetas() {
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({ nombre: '', descripcion: '', idProducto: '', cantPorLote: 1 })
   const [ingRows, setIngRows] = useState([{ idIngrediente: '', cant: '', unidad: '' }])
+  const [nuevoProducto, setNuevoProducto] = useState({ nombre: '', categoria: 'Otros', unidad: 'u', precioVenta: 0 })
   const [toast, setToast] = useState('')
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
-
+  const catOptions = ['Hamburguesas', 'Pizzas', 'Empanadas', 'Platos', 'Guarniciones', 'Bebidas', 'Otros']
+  
   useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
@@ -26,7 +28,7 @@ function Recetas() {
 
   const cargarDatos = async () => {
     const [resR, resP, resI] = await Promise.all([
-      fetch(`${API}/recetas`, { headers: headers() }),
+      fetch(`${API}/recetas?sucursal=${sucursalActual}`, { headers: headers() }),
       fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
       fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() })
     ])
@@ -53,6 +55,7 @@ function Recetas() {
     setEditingId(r?.id || null)
     setForm(r ? { nombre: r.nombre, descripcion: r.descripcion || '', idProducto: r.idProducto, cantPorLote: r.cantPorLote } : { nombre: '', descripcion: '', idProducto: '', cantPorLote: 1 })
     setIngRows(r?.ingredientes?.length > 0 ? r.ingredientes.map(i => ({ idIngrediente: i.idIngrediente, cant: i.cant, unidad: i.unidad })) : [{ idIngrediente: '', cant: '', unidad: '' }])
+    setNuevoProducto({ nombre: '', categoria: 'Otros', unidad: 'u', precioVenta: 0 })
     setModalOpen(true)
   }
 
@@ -69,23 +72,41 @@ function Recetas() {
     }))
   }
 
-  const guardar = async () => {
-    if (!form.nombre) return showToast('El nombre es obligatorio', 'error')
-    if (!form.idProducto) return showToast('Seleccioná el producto que genera', 'error')
-    const ings = ingRows.filter(r => r.idIngrediente && r.cant)
-    if (ings.length === 0) return showToast('Agregá al menos un ingrediente', 'error')
+    const guardar = async () => {
+      if (!form.nombre) return showToast('El nombre es obligatorio', 'error')
+      if (!form.idProducto) return showToast('Seleccioná el producto que genera', 'error')
+      if (form.idProducto === '__nuevo__' && !nuevoProducto.nombre) return showToast('Completá el nombre del producto nuevo', 'error')
+      const ings = ingRows.filter(r => r.idIngrediente && r.cant)
+      if (ings.length === 0) return showToast('Agregá al menos un ingrediente', 'error')
 
-    const body = { ...form, ingredientes: ings }
-    const url = `${API}/recetas${editingId ? '/' + editingId : ''}`
-    try {
-      await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(body) })
-      showToast(editingId ? 'Receta actualizada ✓' : 'Receta creada ✓', 'success')
-      setModalOpen(false)
-      cargarDatos()
-    } catch {
-      showToast('Error al guardar', 'error')
+      try {
+        let idProducto = form.idProducto
+        if (idProducto === '__nuevo__') {
+          const resProd = await fetch(`${API}/productos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers() },
+            body: JSON.stringify({ ...nuevoProducto, stock: 0, stockMin: 0, idSucursal: sucursalActual })
+          })
+          const prodCreado = await resProd.json()
+          if (!prodCreado.id) return showToast('No se pudo crear el producto nuevo', 'error')
+          idProducto = prodCreado.id
+        }
+
+        const body = { ...form, idProducto, ingredientes: ings, idSucursal: sucursalActual }
+        const url = `${API}/recetas${editingId ? '/' + editingId : ''}`
+        const res = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(body) })
+        const data = await res.json()
+        if (data.avisos?.length > 0) {
+          showToast(data.avisos.join(' '), 'error')
+        } else {
+          showToast(editingId ? 'Receta actualizada ✓' : 'Receta creada ✓', 'success')
+        }
+        setModalOpen(false)
+        cargarDatos()
+      } catch {
+        showToast('Error al guardar', 'error')
+      }
     }
-  }
 
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar esta receta?')) return
@@ -161,11 +182,12 @@ function Recetas() {
             <h2>{editingId ? 'Editar Receta' : 'Nueva Receta'}</h2>
             <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} placeholder="Ej: Masa para Pizza" /></div>
             <div className="form-group"><label>Descripción</label><input className="form-control" value={form.descripcion} onChange={e => setForm({...form, descripcion: e.target.value})} placeholder="Descripción opcional" /></div>
-            <div className="form-row">
+                        <div className="form-row">
               <div className="form-group">
                 <label>Producto que genera</label>
-                <select className="form-control" value={form.idProducto} onChange={e => setForm({...form, idProducto: +e.target.value})}>
+                <select className="form-control" value={form.idProducto} onChange={e => setForm({...form, idProducto: e.target.value === '__nuevo__' ? '__nuevo__' : +e.target.value})}>
                   <option value="">— Seleccioná un producto —</option>
+                  <option value="__nuevo__">+ Crear producto nuevo</option>
                   {productos.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
               </div>
@@ -174,7 +196,34 @@ function Recetas() {
                 <input className="form-control" type="number" min="1" value={form.cantPorLote} onChange={e => setForm({...form, cantPorLote: +e.target.value})} />
               </div>
             </div>
-
+            {form.idProducto === '__nuevo__' && (
+              <div style={{background:'#f6f6f6', padding:'10px', borderRadius:'8px', marginBottom:'8px'}}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Nombre del producto nuevo</label>
+                    <input className="form-control" value={nuevoProducto.nombre} onChange={e => setNuevoProducto({...nuevoProducto, nombre: e.target.value})} placeholder="Ej: Pan" />
+                  </div>
+                  <div className="form-group">
+                    <label>Categoría</label>
+                    <select className="form-control" value={nuevoProducto.categoria} onChange={e => setNuevoProducto({...nuevoProducto, categoria: e.target.value})}>
+                      {catOptions.map(c => <option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Unidad</label>
+                    <select className="form-control" value={nuevoProducto.unidad} onChange={e => setNuevoProducto({...nuevoProducto, unidad: e.target.value})}>
+                      {['u','g','kg','ml','l'].map(u => <option key={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Precio Venta</label>
+                    <input className="form-control" type="number" value={nuevoProducto.precioVenta} onChange={e => setNuevoProducto({...nuevoProducto, precioVenta: +e.target.value})} />
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{marginTop:'16px'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px'}}>
                 <strong>Ingredientes</strong>

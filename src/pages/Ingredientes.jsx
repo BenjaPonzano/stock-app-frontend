@@ -19,7 +19,10 @@ function Ingredientes() {
   useEffect(() => { cargarDatos() }, [tab, sucursalActual])
 
   const cargarDatos = async () => {
-    const res = await fetch(`${API}/${tab}?sucursal=${sucursalActual}`)
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${API}/${tab}?sucursal=${sucursalActual}`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
     const items = await res.json()
     setData(prev => ({ ...prev, [tab]: Array.isArray(items) ? items : [] }))
   }

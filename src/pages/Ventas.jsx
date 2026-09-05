@@ -24,6 +24,7 @@ function Ventas() {
   const [stockWarning, setStockWarning] = useState(null)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
