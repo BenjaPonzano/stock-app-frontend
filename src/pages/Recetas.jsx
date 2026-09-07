@@ -5,6 +5,20 @@ import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  clipboard: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/>',
+  store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  flask: '<path d="M9 2v6L4 20a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 8V2"/><line x1="9" y1="2" x2="15" y2="2"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+}
+
 function Recetas() {
   const [recetas, setRecetas] = useState([])
   const [productos, setProductos] = useState([])
@@ -18,7 +32,7 @@ function Recetas() {
   const [toast, setToast] = useState('')
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
   const catOptions = ['Hamburguesas', 'Pizzas', 'Empanadas', 'Platos', 'Guarniciones', 'Bebidas', 'Otros']
-  
+
   useEffect(() => { cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
@@ -120,17 +134,20 @@ function Recetas() {
       <Sidebar />
       <div className="main">
         <div className="topbar">
-          <h1>📋 Recetas</h1>
+          <h1><Icon d={icons.clipboard} /> Recetas</h1>
           {esAdmin ? (
-            <select
-              className="sucursal-badge"
-              value={sucursalActual || ''}
-              onChange={e => cambiarSucursal(+e.target.value)}
-            >
+            <div className="sucursal-select-wrap">
+              <Icon d={icons.store} />
+              <select
+                className="sucursal-badge"
+                value={sucursalActual || ''}
+                onChange={e => cambiarSucursal(+e.target.value)}
+              >
               {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-            </select>
+              </select>
+            </div>
           ) : (
-            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
           )}
         </div>
         <div className="content">
@@ -142,7 +159,10 @@ function Recetas() {
           </div>
 
           <div className="toolbar">
-            <input className="search-box" placeholder="🔍 Buscar receta..." value={search} onChange={e => setSearch(e.target.value)} />
+            <div className="search-wrap">
+              <Icon d={icons.search} />
+              <input className="search-box" placeholder="Buscar receta..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
             <button className="btn btn-primary" onClick={() => openModal()}>+ Nueva Receta</button>
           </div>
 
@@ -160,11 +180,11 @@ function Recetas() {
                     <td style={{color:'var(--muted)'}}>{r.descripcion || '—'}</td>
                     <td><span className="badge badge-cat">{r.productoNombre || '—'}</span></td>
                     <td style={{textAlign:'center'}}>{r.cantPorLote} u.</td>
-                    <td>{r.ingredientes?.map(i => <span key={i.idIngrediente} className="badge badge-ing" style={{margin:'2px'}}>🧂 {i.nombre}</span>)}</td>
+                    <td>{r.ingredientes?.map(i => <span key={i.idIngrediente} className="badge badge-ing" style={{margin:'2px'}}><Icon d={icons.flask} />{i.nombre}</span>)}</td>
                     <td>
                       <div className="actions">
-                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(r)}>✏️ Editar</button>
-                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(r.id)}>🗑️</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(r)}><Icon d={icons.edit} style={{width:13, height:13}} /> Editar</button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(r.id)}><Icon d={icons.trash} /></button>
                       </div>
                     </td>
                   </tr>
@@ -178,7 +198,7 @@ function Recetas() {
       {modalOpen && (
         <div className="modal-overlay open">
           <div className="modal" style={{maxWidth:'600px', width:'95%'}}>
-            <button className="modal-close" onClick={() => setModalOpen(false)}>✕</button>
+            <button className="modal-close" onClick={() => setModalOpen(false)}><Icon d={icons.x} /></button>
             <h2>{editingId ? 'Editar Receta' : 'Nueva Receta'}</h2>
             <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} placeholder="Ej: Masa para Pizza" /></div>
             <div className="form-group"><label>Descripción</label><input className="form-control" value={form.descripcion} onChange={e => setForm({...form, descripcion: e.target.value})} placeholder="Descripción opcional" /></div>
@@ -249,7 +269,7 @@ function Recetas() {
                       </td>
                       <td style={{padding:'4px'}}><input className="form-control" type="number" min="0.1" step="0.1" style={{fontSize:'.85rem'}} value={row.cant} onChange={e => updateIngRow(idx, 'cant', e.target.value)} /></td>
                       <td style={{padding:'4px'}}><input className="form-control" style={{fontSize:'.85rem'}} value={row.unidad} readOnly /></td>
-                      <td style={{padding:'4px'}}><button className="btn-icon" onClick={() => removeIngRow(idx)}>✕</button></td>
+                      <td style={{padding:'4px'}}><button className="btn-icon" onClick={() => removeIngRow(idx)}><Icon d={icons.x} style={{width:12, height:12}} /></button></td>
                     </tr>
                   ))}
                 </tbody>

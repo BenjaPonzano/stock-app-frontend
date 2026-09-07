@@ -5,6 +5,20 @@ import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M17 3.13a4 4 0 0 1 0 7.75"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  crown: '<path d="M2 18h20l-2-9-5 4-3-7-3 7-5-4z"/><line x1="4" y1="21" x2="20" y2="21"/>',
+  cart: '<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h2l2.6 12.4a2 2 0 0 0 2 1.6h9.4a2 2 0 0 0 2-1.6L22 7H6"/>',
+  edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+}
+
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [search, setSearch] = useState('')
@@ -73,7 +87,7 @@ function Usuarios() {
       <Sidebar />
       <div className="main">
         <div className="topbar">
-          <h1>👥 Gestión de Usuarios</h1>
+          <h1><Icon d={icons.users} /> Gestión de Usuarios</h1>
           <div style={{fontSize:'.85rem', color:'var(--muted)'}}>Panel de Control de Accesos</div>
         </div>
         <div className="content">
@@ -86,7 +100,10 @@ function Usuarios() {
 
           <div className="toolbar">
             <div className="toolbar-left">
-              <input className="search-box" placeholder="🔍 Buscar por nombre o apellido..." value={search} onChange={e => setSearch(e.target.value)} />
+              <div className="search-wrap">
+                <Icon d={icons.search} />
+                <input className="search-box" placeholder="Buscar por nombre o apellido..." value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
               <select className="filter-select" value={filterRol} onChange={e => setFilterRol(e.target.value)}>
                 <option value="">Todos los roles</option>
                 <option value="admin">Administradores</option>
@@ -113,11 +130,11 @@ function Usuarios() {
                         {u.nombre} {u.apellido}
                       </div>
                     </td>
-                    <td><span className={`badge ${u.tipoUsuario === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.tipoUsuario === 'admin' ? '👑 Admin' : '🛒 Vendedor'}</span></td>
+                    <td><span className={`badge ${u.tipoUsuario === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.tipoUsuario === 'admin' ? <><Icon d={icons.crown} /> Admin</> : <><Icon d={icons.cart} /> Vendedor</>}</span></td>
                     <td>
                       <div className="actions">
-                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(u)}>✏️ Editar</button>
-                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(u.idUsuario)}>🗑️</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => openModal(u)}><Icon d={icons.edit} style={{width:13, height:13}} /> Editar</button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(u.idUsuario)}><Icon d={icons.trash} /></button>
                       </div>
                     </td>
                   </tr>
@@ -131,7 +148,7 @@ function Usuarios() {
       {modalOpen && (
         <div className="modal-overlay open">
           <div className="modal">
-            <button className="modal-close" onClick={() => setModalOpen(false)}>✕</button>
+            <button className="modal-close" onClick={() => setModalOpen(false)}><Icon d={icons.x} /></button>
             <h2>{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
             <div className="form-row">
               <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
@@ -145,8 +162,8 @@ function Usuarios() {
             <div className="form-group">
               <label>Tipo de Usuario</label>
               <div className="role-toggle">
-                <div className={`role-opt admin ${rol === 'admin' ? 'active' : ''}`} onClick={() => setRol('admin')}>👑 Admin</div>
-                <div className={`role-opt vendedor ${rol === 'vendedor' ? 'active' : ''}`} onClick={() => setRol('vendedor')}>🛒 Vendedor</div>
+                <div className={`role-opt admin ${rol === 'admin' ? 'active' : ''}`} onClick={() => setRol('admin')} style={{display:'inline-flex', alignItems:'center', justifyContent:'center', gap:'6px'}}><Icon d={icons.crown} style={{width:14, height:14}} /> Admin</div>
+                <div className={`role-opt vendedor ${rol === 'vendedor' ? 'active' : ''}`} onClick={() => setRol('vendedor')} style={{display:'inline-flex', alignItems:'center', justifyContent:'center', gap:'6px'}}><Icon d={icons.cart} style={{width:14, height:14}} /> Vendedor</div>
               </div>
             </div>
             {rol === 'vendedor' && (
@@ -154,7 +171,7 @@ function Usuarios() {
               <label>Sucursal Asignada</label>
               <select className="form-control" value={form.idSucursal || ''} onChange={e => setForm({...form, idSucursal: +e.target.value})}>
                 <option value="">— Seleccioná una sucursal —</option>
-                {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
               </select>
             </div>
           )}
