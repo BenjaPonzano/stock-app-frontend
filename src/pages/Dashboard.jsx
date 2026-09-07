@@ -3,6 +3,24 @@ import Sidebar from '../components/Sidebar'
 import { getVentas, getCompras, getElaboraciones, getProductos, getIngredientes } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
 
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
+  money: '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5 2.2 3 5 3.5 5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5"/>',
+  receipt: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/>',
+  cart: '<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h2l2.6 12.4a2 2 0 0 0 2 1.6h9.4a2 2 0 0 0 2-1.6L22 7H6"/>',
+  alert: '<path d="M12 3l9.5 17H2.5z"/><line x1="12" y1="10" x2="12" y2="14"/>',
+  chart: '<line x1="6" y1="20" x2="6" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/>',
+  star: '<polygon points="12 2 15 9 22 9 16.5 13.5 18.5 21 12 16.5 5.5 21 7.5 13.5 2 9 9 9"/>',
+  refresh: '<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/>',
+  check: '<circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>',
+    chef: '<path d="M12 2c1 2-1 3-1 5 0 1.5 1 2.5 2.5 2.5S16 11.5 16 10c0-1-.5-1.5-1-3 2 1.5 4 4.5 4 7.5a6.5 6.5 0 0 1-13 0c0-3.5 2-6.5 6-9.5z"/>',
+}
+
 function Dashboard() {
   const [ventasHoy, setVentasHoy] = useState(0)
   const [ventasSub, setVentasSub] = useState('Cargando...')
@@ -70,19 +88,19 @@ function Dashboard() {
       // Top productos
       const ranking = {}
       ventas.forEach(v => v.items?.forEach(item => {
-        if (!ranking[item.nombre]) ranking[item.nombre] = { cant: 0, emoji: item.emoji }
+        if (!ranking[item.nombre]) ranking[item.nombre] = { cant: 0 }
         ranking[item.nombre].cant += item.cant
       }))
       const top = Object.entries(ranking)
-        .map(([nombre, d]) => ({ nombre, cant: d.cant, emoji: d.emoji }))
+        .map(([nombre, d]) => ({ nombre, cant: d.cant }))
         .sort((a, b) => b.cant - a.cant).slice(0, 4)
       setTopProductos(top)
 
       // Actividad
       let act = []
-      ventas.forEach(v => act.push({ fechaObj: new Date(v.fecha), texto: `Venta registrada (${v.id})`, sub: `Total: $${v.total?.toLocaleString()}`, icon: '💰', color: 'var(--success)' }))
-      elaboraciones.forEach(e => act.push({ fechaObj: new Date(e.fecha), texto: `Elaboración: ${e.recetaNombre}`, icon: '👨‍🍳', color: 'var(--primary)' }))
-      compras.forEach(c => act.push({ fechaObj: new Date(c.fecha), texto: `Ingreso mercadería`, sub: `Prov: ${c.proveedor}`, icon: '🛒', color: 'var(--info)' }))
+      ventas.forEach(v => act.push({ fechaObj: new Date(v.fecha), texto: `Venta registrada (${v.id})`, sub: `Total: $${v.total?.toLocaleString()}`, iconKey: 'money', color: 'var(--success)' }))
+      elaboraciones.forEach(e => act.push({ fechaObj: new Date(e.fecha), texto: `Elaboración: ${e.recetaNombre}`, iconKey: 'chef', color: 'var(--primary)' }))
+      compras.forEach(c => act.push({ fechaObj: new Date(c.fecha), texto: `Ingreso mercadería`, sub: `Prov: ${c.proveedor}`, iconKey: 'cart', color: 'var(--info)' }))
       act.sort((a, b) => b.fechaObj - a.fechaObj)
       setActividad(act.slice(0, 4))
 
@@ -93,32 +111,35 @@ function Dashboard() {
   }
 
   const maxVenta = Math.max(...chartDias.map(d => d.total), 1)
-  const colores = ['var(--primary)', 'var(--info)', 'var(--success)', 'var(--warning)']
   const maxCant = topProductos.length ? topProductos[0].cant : 1
+  const rankColors = ['var(--primary)', '#2980b9', '#27ae60', '#f39c12']
 
   return (
     <div>
       <Sidebar />
       <div className="main">
         <div className="topbar">
-          <h1>📊 Panel General</h1>
+          <h1><Icon d={icons.dashboard} style={{color:'var(--primary)', width:'22px', height:'22px'}} /> Panel General</h1>
           {esAdmin ? (
-            <select
-              className="sucursal-badge"
-              value={sucursalActual || ''}
-              onChange={e => cambiarSucursal(+e.target.value)}
-            >
+            <div className="sucursal-select-wrap">
+              <Icon d={icons.store} />
+              <select
+                className="sucursal-badge"
+                value={sucursalActual || ''}
+                onChange={e => cambiarSucursal(+e.target.value)}
+              >
               {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-            </select>
+              </select>
+            </div>
           ) : (
-            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+            <div className="sucursal-badge"><Icon d={icons.store} style={{width:'13px', height:'13px'}} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
           )}
         </div>
         <div className="content">
 
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-icon" style={{background:'#eaf2ff', color:'#2980b9'}}>💰</div>
+              <div className="stat-icon" style={{background:'#eaf2ff', color:'#2980b9'}}><Icon d={icons.money} /></div>
               <div className="stat-info">
                 <div className="stat-label">Ventas Hoy</div>
                 <div className="stat-value">${ventasHoy.toLocaleString()}</div>
@@ -126,7 +147,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{background:'#d5f5e3', color:'#27ae60'}}>🧾</div>
+              <div className="stat-icon" style={{background:'#d5f5e3', color:'#27ae60'}}><Icon d={icons.receipt} /></div>
               <div className="stat-info">
                 <div className="stat-label">Órdenes Hoy</div>
                 <div className="stat-value">{ordenes}</div>
@@ -134,7 +155,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{background:'#fef9e7', color:'#f39c12'}}>🛒</div>
+              <div className="stat-icon" style={{background:'#fef9e7', color:'#f39c12'}}><Icon d={icons.cart} /></div>
               <div className="stat-info">
                 <div className="stat-label">Compras (Mes)</div>
                 <div className="stat-value">${comprasMes.toLocaleString()}</div>
@@ -142,7 +163,7 @@ function Dashboard() {
               </div>
             </div>
             <div className="stat-card">
-              <div className="stat-icon" style={{background:'#fadbd8', color:'#c0392b'}}>⚠️</div>
+              <div className="stat-icon" style={{background:'#fadbd8', color:'#c0392b'}}><Icon d={icons.alert} /></div>
               <div className="stat-info">
                 <div className="stat-label">Alertas Stock</div>
                 <div className="stat-value">{alertas}</div>
@@ -154,7 +175,7 @@ function Dashboard() {
           <div className="dash-layout">
             <div>
               <div className="panel">
-                <div className="panel-header"><h2>📈 Ventas (Últimos 7 días)</h2></div>
+                <div className="panel-header"><Icon d={icons.chart} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Ventas (Últimos 7 días)</h2></div>
                 <div className="panel-body">
                   <div className="chart-area">
                     {chartDias.map((d, i) => {
@@ -174,16 +195,16 @@ function Dashboard() {
               </div>
 
               <div className="panel">
-                <div className="panel-header"><h2>⭐ Productos Más Vendidos</h2></div>
+                <div className="panel-header"><Icon d={icons.star} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Productos Más Vendidos</h2></div>
                 <div className="panel-body">
                   <div className="top-list">
                     {topProductos.length > 0 ? topProductos.map((item, i) => (
                       <div className="top-item" key={i}>
-                        <div className="top-emoji">{item.emoji || '🍽️'}</div>
+                        <div className="top-rank" style={{color: rankColors[i]}}>{i + 1}</div>
                         <div className="top-details">
                           <div className="top-name">{item.nombre}</div>
                           <div className="progress-wrap">
-                            <div className="progress-bar" style={{width: `${(item.cant / maxCant) * 100}%`, background: colores[i]}}></div>
+                            <div className="progress-bar" style={{width: `${(item.cant / maxCant) * 100}%`, background: rankColors[i]}}></div>
                           </div>
                         </div>
                         <div className="top-qty">{item.cant} u.</div>
@@ -196,7 +217,7 @@ function Dashboard() {
 
             <div>
               <div className="panel">
-                <div className="panel-header"><h2>⚠️ Stock Crítico</h2></div>
+                <div className="panel-header"><Icon d={icons.alert} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Stock Crítico</h2></div>
                 <div className="panel-body">
                   <div className="alert-list">
                     {stockCritico.length > 0 ? stockCritico.map((item, i) => (
@@ -206,18 +227,18 @@ function Dashboard() {
                           <p>{item.stock === 0 ? 'Stock agotado' : 'Stock bajo'} ({item.stock} {item.unidad}). Mínimo: {item.stockMin}.</p>
                         </div>
                       </div>
-                    )) : <div className="empty-state" style={{color:'var(--success)'}}>✅ Todo el inventario está en niveles óptimos.</div>}
+                    )) : <div className="empty-state" style={{color:'var(--success)', display:'flex', alignItems:'center', gap:'6px', justifyContent:'center'}}><Icon d={icons.check} style={{width:'16px', height:'16px'}} /> Todo el inventario está en niveles óptimos.</div>}
                   </div>
                 </div>
               </div>
 
               <div className="panel">
-                <div className="panel-header"><h2>🔄 Actividad Reciente</h2></div>
+                <div className="panel-header"><Icon d={icons.refresh} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Actividad Reciente</h2></div>
                 <div className="panel-body">
                   <div className="activity-list">
                     {actividad.length > 0 ? actividad.map((a, i) => (
                       <div className="activity-item" key={i}>
-                        <div className="activity-icon" style={{color: a.color, borderColor: a.color}}>{a.icon}</div>
+                        <div className="activity-icon" style={{color: a.color, borderColor: a.color}}><Icon d={icons[a.iconKey]} style={{width:'15px', height:'15px'}} /></div>
                         <div className="activity-details">
                           <div className="activity-title">{a.texto}</div>
                           <div className="activity-time">{a.fechaObj.toLocaleDateString('es-AR')}</div>

@@ -5,7 +5,32 @@ import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 const pagoLabels = { ef: 'Efectivo', mp: 'Mercado Pago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' }
-const pagoEmojis = { ef: '💵', mp: '📱', td: '💳', tc: '💳' }
+const pagoIconKeys = { ef: 'banknote', mp: 'smartphone', td: 'card', tc: 'card' }
+
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  money: '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5 2.2 3 5 3.5 5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5"/>',
+  store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
+  box: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  receipt: '<path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  banknote: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>',
+  smartphone: '<rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
+  card: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
+  check: '<circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>',
+  alert: '<path d="M12 3l9.5 17H2.5z"/><line x1="12" y1="10" x2="12" y2="14"/>',
+  logo: '<path d="M6 2v8"/><path d="M4 2v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2"/><path d="M18 2c-2.2 2-3.4 5.2-3.4 8.4 0 2.1 1 3.2 2.9 3.2V22"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'
+}
+
+const avatarColors = ['#e67e22', '#2980b9', '#27ae60', '#8e44ad', '#c0392b', '#16a085']
+const avatarColor = (nombre = '') => avatarColors[nombre.length ? nombre.charCodeAt(0) % avatarColors.length : 0]
 
 function Ventas() {
   const [productos, setProductos] = useState([])
@@ -129,17 +154,20 @@ function Ventas() {
       <Sidebar />
       <div className="main">
         <div className="topbar">
-          <h1>💰 Ventas</h1>
+          <h1><Icon d={icons.money} /> Ventas</h1>
           {esAdmin ? (
-            <select
-              className="sucursal-badge"
-              value={sucursalActual || ''}
-              onChange={e => cambiarSucursal(+e.target.value)}
-            >
+            <div className="sucursal-select-wrap">
+              <Icon d={icons.store} />
+              <select
+                className="sucursal-badge"
+                value={sucursalActual || ''}
+                onChange={e => cambiarSucursal(+e.target.value)}
+              >
               {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-            </select>
+              </select>
+            </div>
           ) : (
-            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
           )}
         </div>
         <div className="content">
@@ -152,8 +180,8 @@ function Ventas() {
           <div className="layout">
             <div>
               <div className="panel" style={{marginBottom:'16px'}}>
-                <div className="panel-header"><h2>🛍️ Seleccioná productos</h2></div>
-                <div className="catalogo-search"><input id="prodSearch" placeholder="🔍 Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} /></div>
+                <div className="panel-header"><h2><Icon d={icons.box} /> Seleccioná productos</h2></div>
+                <div className="catalogo-search"><Icon d={icons.search} /><input id="prodSearch" placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} /></div>
                 <div className="catalogo-cats">
                   {cats.map(c => <div key={c} className={`cat-chip ${c === catActiva ? 'active' : ''}`} onClick={() => setCatActiva(c)}>{c}</div>)}
                 </div>
@@ -161,9 +189,9 @@ function Ventas() {
                   {prodsFiltrados.map(p => (
                     <div key={p.id} className={`prod-card ${p.stock === 0 ? 'sin-stock' : ''}`} onClick={() => addToCart(p)}>
                       <span className={`prod-stock-badge ${p.stock === 0 ? 'stock-out' : p.stock < 5 ? 'stock-low' : 'stock-ok'}`}>
-                        {p.stock === 0 ? 'Sin stock' : p.stock < 5 ? `⚠ ${p.stock} u.` : `${p.stock} u.`}
+                        {p.stock === 0 ? 'Sin stock' : `${p.stock} u.`}
                       </span>
-                      <div className="prod-emoji">{p.emoji || '🍽️'}</div>
+                      <div className="prod-avatar" style={{background: avatarColor(p.nombre)}}>{(p.nombre || '?').charAt(0).toUpperCase()}</div>
                       <div className="prod-nombre">{p.nombre}</div>
                       <div className="prod-precio">${p.precioVenta?.toLocaleString()}</div>
                     </div>
@@ -173,8 +201,8 @@ function Ventas() {
 
               <div className="panel">
                 <div className="panel-header">
-                  <h2>🧾 Ticket actual</h2>
-                  <button className="btn btn-ghost" style={{fontSize:'.8rem', padding:'5px 10px'}} onClick={() => setCarrito([])}>🗑 Limpiar</button>
+                  <h2><Icon d={icons.receipt} /> Ticket actual</h2>
+                  <button className="btn btn-ghost" style={{fontSize:'.8rem', padding:'5px 10px', display:'flex', alignItems:'center', gap:'5px'}} onClick={() => setCarrito([])}><Icon d={icons.trash} style={{width:14, height:14}} /> Limpiar</button>
                 </div>
                 <div className="panel-body">
                   <div className="cart-list">
@@ -185,7 +213,7 @@ function Ventas() {
                           <tr><td colSpan="5"><div className="empty-cart">Agregá productos desde el catálogo</div></td></tr>
                         ) : carrito.map(i => (
                           <tr key={i.id}>
-                            <td>{i.emoji} {i.nombre}</td>
+                            <td><div className="cart-row-name"><div className="mini-avatar" style={{background: avatarColor(i.nombre)}}></div>{i.nombre}</div></td>
                             <td>
                               <div className="qty-ctrl">
                                 <button className="qty-btn" onClick={() => cambiarCant(i.id, -1)}>−</button>
@@ -195,7 +223,7 @@ function Ventas() {
                             </td>
                             <td>${i.precio.toLocaleString()}</td>
                             <td>${i.sub.toLocaleString()}</td>
-                            <td><button className="btn-icon" onClick={() => cambiarCant(i.id, -999)}>✕</button></td>
+                            <td><button className="btn-icon" onClick={() => cambiarCant(i.id, -999)}><Icon d={icons.x} style={{width:12, height:12}} /></button></td>
                           </tr>
                         ))}
                       </tbody>
@@ -217,7 +245,7 @@ function Ventas() {
                   <div className="pago-row">
                     {['ef','mp','td','tc'].map(p => (
                       <div key={p} className={`pago-btn ${pago === p ? 'selected' : ''}`} onClick={() => setPago(p)}>
-                        <span className="pago-icon">{pagoEmojis[p]}</span>{pagoLabels[p]}
+                        <span className="pago-icon"><Icon d={icons[pagoIconKeys[p]]} /></span>{pagoLabels[p]}
                       </div>
                     ))}
                   </div>
@@ -226,18 +254,18 @@ function Ventas() {
                     <div style={{display:'flex', alignItems:'center', gap:'8px', marginTop:'6px', marginBottom:'4px'}}>
                       <label style={{fontSize:'.82rem', color:'var(--muted)', whiteSpace:'nowrap'}}>Con cuánto paga:</label>
                       <input className="form-control" type="number" value={conCuanto} onChange={e => setConCuanto(e.target.value)} style={{maxWidth:'120px', padding:'6px 10px'}} placeholder="$0" />
-                      {vuelto !== null && <span style={{fontSize:'.85rem', color:'var(--success)', fontWeight:600}}>{vuelto >= 0 ? `Vuelto: $${vuelto.toLocaleString()}` : '⚠ Monto insuficiente'}</span>}
+                      {vuelto !== null && <span style={{fontSize:'.85rem', color:'var(--success)', fontWeight:600, display:'inline-flex', alignItems:'center', gap:'4px'}}>{vuelto >= 0 ? `Vuelto: $${vuelto.toLocaleString()}` : (<><Icon d={icons.alert} style={{width:14, height:14}} /> Monto insuficiente</>)}</span>}
                     </div>
                   )}
 
-                  <button className="btn btn-success btn-full" onClick={() => registrarVenta()}>✅ Confirmar Venta</button>
+                  <button className="btn btn-success btn-full" onClick={() => registrarVenta()} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}><Icon d={icons.check} /> Confirmar Venta</button>
 
                   {ticket && (
                     <div className="ticket-box show">
-                      <div style={{textAlign:'center', fontWeight:700, marginBottom:'4px'}}>🍽️ StockGastro</div>
+                      <div style={{textAlign:'center', fontWeight:700, marginBottom:'4px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px'}}><Icon d={icons.logo} style={{color:'var(--primary)'}} /> StockGastro</div>
                       <div style={{textAlign:'center', color:'var(--muted)', marginBottom:'8px', fontSize:'.78rem'}}>{ticket.id}</div>
                       <pre style={{fontSize:'.78rem', fontFamily:'monospace', whiteSpace:'pre-wrap'}}>
-                        {ticket.items.map(i => `${i.emoji} ${i.nombre} x${i.cant} .......... $${i.sub.toLocaleString()}`).join('\n')}
+                        {ticket.items.map(i => `${i.nombre} x${i.cant} .......... $${i.sub.toLocaleString()}`).join('\n')}
                       </pre>
                       <hr style={{border:'none', borderTop:'1px dashed var(--border)', margin:'8px 0'}} />
                       <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, fontSize:'1rem', color:'var(--primary)'}}>
@@ -251,9 +279,9 @@ function Ventas() {
             </div>
 
             <div className="panel">
-              <div className="panel-header"><h2>🕓 Historial de Ventas</h2></div>
+              <div className="panel-header"><h2><Icon d={icons.clock} /> Historial de Ventas</h2></div>
               <div className="hist-filters">
-                <input className="search-sm" placeholder="🔍 Buscar..." value={histSearch} onChange={e => setHistSearch(e.target.value)} />
+                <input className="search-sm" placeholder="Buscar..." value={histSearch} onChange={e => setHistSearch(e.target.value)} />
               </div>
               <div className="hist-filters" style={{paddingTop:0}}>
                 <select className="filter-select" value={histPago} onChange={e => setHistPago(e.target.value)}>
@@ -266,22 +294,22 @@ function Ventas() {
               </div>
               <div>
                 {histFiltrado.length === 0 ? (
-                  <div className="empty-hist"><div className="icon">🧾</div>Sin ventas registradas</div>
+                  <div className="empty-hist"><div className="icon"><Icon d={icons.receipt} style={{width:32, height:32}} /></div>Sin ventas registradas</div>
                 ) : histFiltrado.map(v => (
                   <div key={v.id} className="venta-card" onClick={() => setModal(v)}>
                     <div className="venta-top">
                       <div>
                         <div className="venta-id">{v.id}</div>
                         <div className="venta-meta">
-                          <span>📅 {new Date(v.fecha).toLocaleDateString('es-AR')}</span>
-                          <span>{pagoEmojis[v.pago]} {pagoLabels[v.pago]}</span>
+                          <span style={{display:'inline-flex', alignItems:'center', gap:'4px'}}><Icon d={icons.calendar} style={{width:13, height:13}} /> {new Date(v.fecha).toLocaleDateString('es-AR')}</span>
+                          <span style={{display:'inline-flex', alignItems:'center', gap:'4px'}}><Icon d={icons[pagoIconKeys[v.pago]]} style={{width:13, height:13}} /> {pagoLabels[v.pago]}</span>
                           {v.descuento > 0 && <span style={{color:'var(--danger)'}}>−{v.descuento}%</span>}
                         </div>
                       </div>
                       <div className="venta-total">${v.total.toLocaleString()}</div>
                     </div>
                     <div className="venta-pills">
-                      {v.items.slice(0, 3).map((i, idx) => <span key={idx} className="pill">{i.emoji} {i.nombre} x{i.cant}</span>)}
+                      {v.items.slice(0, 3).map((i, idx) => <span key={idx} className="pill">{i.nombre} x{i.cant}</span>)}
                       {v.items.length > 3 && <span className="pill">+{v.items.length - 3} más</span>}
                     </div>
                   </div>
@@ -295,13 +323,13 @@ function Ventas() {
       {modal && (
         <div className="modal-overlay open">
           <div className="modal">
-            <button className="modal-close" onClick={() => setModal(null)}>✕</button>
-            <h2>🧾 {modal.id}</h2>
-            <div className="modal-meta">📅 {new Date(modal.fecha).toLocaleDateString('es-AR')} &nbsp;·&nbsp; {pagoEmojis[modal.pago]} {pagoLabels[modal.pago]}</div>
+            <button className="modal-close" onClick={() => setModal(null)}><Icon d={icons.x} /></button>
+            <h2><Icon d={icons.receipt} /> {modal.id}</h2>
+            <div className="modal-meta" style={{display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.calendar} style={{width:14, height:14}} /> {new Date(modal.fecha).toLocaleDateString('es-AR')} &nbsp;·&nbsp; <Icon d={icons[pagoIconKeys[modal.pago]]} style={{width:14, height:14}} /> {pagoLabels[modal.pago]}</div>
             <table className="detail-table">
               <thead><tr><th>Producto</th><th>Cant.</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
               <tbody>
-                {modal.items.map((i, idx) => <tr key={idx}><td>{i.emoji} {i.nombre}</td><td>{i.cant}</td><td>${i.precio?.toLocaleString()}</td><td>${i.sub?.toLocaleString()}</td></tr>)}
+                {modal.items.map((i, idx) => <tr key={idx}><td><div className="cart-row-name"><div className="mini-avatar" style={{background: avatarColor(i.nombre)}}></div>{i.nombre}</div></td><td>{i.cant}</td><td>${i.precio?.toLocaleString()}</td><td>${i.sub?.toLocaleString()}</td></tr>)}
               </tbody>
             </table>
             <div className="modal-total-box">
@@ -314,8 +342,8 @@ function Ventas() {
             {stockWarning && (
         <div className="modal-overlay open">
           <div className="modal">
-            <button className="modal-close" onClick={() => setStockWarning(null)}>✕</button>
-            <h2>⚠️ Stock insuficiente</h2>
+            <button className="modal-close" onClick={() => setStockWarning(null)}><Icon d={icons.x} /></button>
+            <h2 style={{display:'flex', alignItems:'center', gap:'8px'}}><Icon d={icons.alert} /> Stock insuficiente</h2>
             <p style={{color:'var(--muted)', marginBottom:'12px'}}>Estos productos no tienen stock suficiente:</p>
             <table className="detail-table">
               <thead><tr><th>Producto</th><th>Stock disponible</th><th>Cantidad pedida</th></tr></thead>

@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { login } from '../services/auth'
 import { useSucursal } from '../contexts/SucursalContext'
 
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  logo: '<path d="M12 2c1 2-1 3-1 5 0 1.5 1 2.5 2.5 2.5S16 11.5 16 10c0-1-.5-1.5-1-3 2 1.5 4 4.5 4 7.5a6.5 6.5 0 0 1-13 0c0-3.5 2-6.5 6-9.5z"/>'
+}
+
 function Login() {
   const [nombre, setNombre] = useState('')
   const [password, setPassword] = useState('')
@@ -21,55 +29,40 @@ function Login() {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.box}>
-        <h2 style={styles.title}>🍕 StockGastro</h2>
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Usuario"
-          value={nombre}
-          onChange={e => setNombre(e.target.value)}
-        />
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLogin()}
-        />
-        <button style={styles.button} onClick={handleLogin}>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <Icon d={icons.logo} />
+          <span>StockGastro</span>
+        </div>
+        <div className="login-sub">Sistema de Control de Stock</div>
+
+        <div className="form-group">
+          <input
+            className="form-control"
+            type="text"
+            placeholder="Usuario"
+            value={nombre}
+            onChange={e => setNombre(e.target.value)}
+          />
+        </div>
+        <div className="form-group">
+          <input
+            className="form-control"
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleLogin()}
+          />
+        </div>
+        <button className="btn btn-primary btn-full" onClick={handleLogin}>
           Ingresar
         </button>
-        {error && <p style={styles.error}>{error}</p>}
+        {error && <div className="login-error">{error}</div>}
       </div>
     </div>
   )
-}
-
-const styles = {
-  container: {
-    display: 'flex', justifyContent: 'center', alignItems: 'center',
-    height: '100vh', background: '#1a1a2e'
-  },
-  box: {
-    background: '#16213e', padding: '40px', borderRadius: '12px',
-    width: '360px', boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-  },
-  title: { color: 'white', textAlign: 'center', marginBottom: '30px' },
-  input: {
-    width: '100%', padding: '12px', marginBottom: '16px',
-    borderRadius: '8px', border: '1px solid #333',
-    background: '#0f3460', color: 'white', fontSize: '14px',
-    boxSizing: 'border-box'
-  },
-  button: {
-    width: '100%', padding: '12px', background: '#4A90D9',
-    color: 'white', border: 'none', borderRadius: '8px',
-    fontSize: '16px', cursor: 'pointer'
-  },
-  error: { color: '#ff6b6b', textAlign: 'center', marginTop: '10px' }
 }
 
 export default Login

@@ -5,6 +5,17 @@ import { useSucursal } from '../contexts/SucursalContext'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
+const Icon = ({ d, ...props }) => (
+  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
+)
+
+const icons = {
+  trend: '<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>',
+  store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
+  search: '<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  alert: '<path d="M12 3l9.5 17H2.5z"/><line x1="12" y1="10" x2="12" y2="14"/>'
+}
+
 function Reportes() {
   const [tab, setTab] = useState('rep-productos')
   const [productos, setProductos] = useState([])
@@ -107,17 +118,20 @@ function Reportes() {
       <Sidebar />
       <div className="main">
         <div className="topbar">
-          <h1>📈 Reportes y Estadísticas</h1>
+          <h1><Icon d={icons.trend} /> Reportes y Estadísticas</h1>
           {esAdmin ? (
-            <select
-              className="sucursal-badge"
-              value={sucursalActual || ''}
-              onChange={e => cambiarSucursal(+e.target.value)}
-            >
+            <div className="sucursal-select-wrap">
+              <Icon d={icons.store} />
+              <select
+                className="sucursal-badge"
+                value={sucursalActual || ''}
+                onChange={e => cambiarSucursal(+e.target.value)}
+              >
               {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-            </select>
+              </select>
+            </div>
           ) : (
-            <div className="sucursal-badge">🏪 {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
+            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
           )}
         </div>
         <div className="content">
@@ -136,7 +150,10 @@ function Reportes() {
           {tab === 'rep-productos' && (
             <div>
               <div className="toolbar">
-                <input className="search-box" placeholder="🔍 Buscar por nombre o categoría..." value={r1Search} onChange={e => setR1Search(e.target.value)} />
+                <div className="search-wrap">
+                  <Icon d={icons.search} />
+                  <input className="search-box" placeholder="Buscar por nombre o categoría..." value={r1Search} onChange={e => setR1Search(e.target.value)} />
+                </div>
                 <select className="filter-select" value={r1Tipo} onChange={e => setR1Tipo(e.target.value)}>
                   <option value="todos">Todos los ítems</option>
                   <option value="producto">Solo Productos</option>
@@ -172,7 +189,10 @@ function Reportes() {
           {tab === 'rep-ingresos' && (
             <div>
               <div className="toolbar">
-                <input className="search-box" placeholder="🔍 Buscar proveedor o ítem..." value={r2Search} onChange={e => setR2Search(e.target.value)} />
+                <div className="search-wrap">
+                  <Icon d={icons.search} />
+                  <input className="search-box" placeholder="Buscar proveedor o ítem..." value={r2Search} onChange={e => setR2Search(e.target.value)} />
+                </div>
                 <input type="date" className="filter-select" value={r2Fecha} onChange={e => setR2Fecha(e.target.value)} />
               </div>
               <div className="table-wrap">
@@ -200,7 +220,10 @@ function Reportes() {
           {tab === 'rep-ventas' && (
             <div>
               <div className="toolbar">
-                <input className="search-box" placeholder="🔍 Buscar por Nº Venta..." value={r3Search} onChange={e => setR3Search(e.target.value)} />
+                <div className="search-wrap">
+                  <Icon d={icons.search} />
+                  <input className="search-box" placeholder="Buscar por Nº Venta..." value={r3Search} onChange={e => setR3Search(e.target.value)} />
+                </div>
                 <select className="filter-select" value={r3Pago} onChange={e => setR3Pago(e.target.value)}>
                   <option value="">Todos los métodos</option>
                   <option value="ef">Efectivo</option>
@@ -226,7 +249,7 @@ function Reportes() {
                           <td>{v.descuento > 0 ? `${v.descuento}%` : '-'}</td>
                           <td><strong>${v.total?.toLocaleString()}</strong></td>
                           <td>{(v.items || []).length} ítem(s)</td>
-                          <td>{v.forzada ? <span className="badge badge-warning">⚠ Forzada</span> : '-'}</td>
+                          <td>{v.forzada ? <span className="badge badge-warning"><Icon d={icons.alert} /> Forzada</span> : '-'}</td>
                         </tr>
                       )
                     })}
@@ -239,7 +262,10 @@ function Reportes() {
           {tab === 'rep-elab' && (
             <div>
               <div className="toolbar">
-                <input className="search-box" placeholder="🔍 Buscar por receta o producto..." value={r4Search} onChange={e => setR4Search(e.target.value)} />
+                <div className="search-wrap">
+                  <Icon d={icons.search} />
+                  <input className="search-box" placeholder="Buscar por receta o producto..." value={r4Search} onChange={e => setR4Search(e.target.value)} />
+                </div>
                 <input type="month" className="filter-select" value={r4Fecha} onChange={e => setR4Fecha(e.target.value)} />
               </div>
               <div className="table-wrap">
