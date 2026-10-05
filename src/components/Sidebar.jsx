@@ -1,11 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { logout } from '../services/auth'
 import { useSucursal } from '../contexts/SucursalContext'
-
-const Icon = ({ d }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
-)
+import Icon from './Icon'
 
 const icons = {
   dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -16,13 +13,16 @@ const icons = {
   chef: '<path d="M12 2c1 2-1 3-1 5 0 1.5 1 2.5 2.5 2.5S16 11.5 16 10c0-1-.5-1.5-1-3 2 1.5 4 4.5 4 7.5a6.5 6.5 0 0 1-13 0c0-3.5 2-6.5 6-9.5z"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M17 3.13a4 4 0 0 1 0 7.75"/>',
   store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
+  menu: '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
   trend: '<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>',
-  logo: '<path d="M6 2v8"/><path d="M4 2v6a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2"/><path d="M18 2c-2.2 2-3.4 5.2-3.4 8.4 0 2.1 1 3.2 2.9 3.2V22"/>'
+  logo: '<path d="M12 2c1 2-1 3-1 5 0 1.5 1 2.5 2.5 2.5S16 11.5 16 10c0-1-.5-1.5-1-3 2 1.5 4 4.5 4 7.5a6.5 6.5 0 0 1-13 0c0-3.5 2-6.5 6-9.5z"/>'
 }
 
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  // En celular y tablet el menú se abre y se cierra con el botón hamburguesa
+  const [abierto, setAbierto] = useState(false)
   const path = location.pathname
   const tipoUsuario = localStorage.getItem('tipoUsuario')
   const nombre = localStorage.getItem('nombre') || 'Usuario'
@@ -30,14 +30,22 @@ function Sidebar() {
   const { sucursales, sucursalActual, cambiarSucursal, esAdmin } = useSucursal()
 
   const navItem = (to, iconKey, label) => (
-    <div className={`nav-item ${path === to ? 'active' : ''}`} onClick={() => navigate(to)}>
+    <div className={`nav-item ${path === to ? 'active' : ''}`} onClick={() => { setAbierto(false); navigate(to) }}>
       <Icon d={icons[iconKey]} /> {label}
     </div>
   )
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-logo"><Icon d={icons.logo} /> StockGastro</div>
+    <>
+    <button className={`sidebar-toggle ${abierto ? 'open' : ''}`} aria-label="Abrir menú" aria-expanded={abierto} onClick={() => setAbierto(!abierto)}>
+      <Icon d={icons.menu} />
+    </button>
+    <div className={`sidebar-backdrop ${abierto ? 'open' : ''}`} onClick={() => setAbierto(false)} />
+    <div className={`sidebar ${abierto ? 'open' : ''}`}>
+      <div className="sidebar-logo">
+        <img src={`${process.env.PUBLIC_URL}/logo-icon.png`} alt="" width="36" height="36" />
+        <span className="logo-nombre">Stock<b>Gastro</b></span>
+      </div>
       <nav>
         {isAdmin && (
           <>
@@ -74,6 +82,7 @@ function Sidebar() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

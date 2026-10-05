@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import Icon from '../components/Icon'
+import Usuario from '../models/Usuario'
+import Toast from '../components/Toast'
+import Modal from '../components/Modal'
+import Cargando from '../components/Cargando'
+import ConfirmarModal from '../components/ConfirmarModal'
+import StatCard from '../components/StatCard'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M17 3.13a4 4 0 0 1 0 7.75"/>',
@@ -28,6 +32,9 @@ function Usuarios() {
   const [form, setForm] = useState({})
   const [rol, setRol] = useState('vendedor')
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [aEliminar, setAEliminar] = useState(null)
   const { sucursales } = useSucursal()
 
   useEffect(() => { cargarDatos() }, [])
@@ -38,22 +45,27 @@ function Usuarios() {
   }
 
   const cargarDatos = async () => {
-    const res = await fetch(`${API}/usuarios`, { headers: headers() })
-    setUsuarios(await res.json())
+    try {
+      const res = await fetch(`${API}/usuarios`, { headers: headers() })
+      const datos = await res.json()
+      setUsuarios(Array.isArray(datos) ? datos.map(Usuario.desdeApi) : [])
+    } catch (e) {
+      showToast('No se pudo conectar con el servidor', 'error')
+    } finally {
+      setCargando(false)
+    }
   }
 
-  const getIniciales = (n, a) => (n?.charAt(0) + a?.charAt(0)).toUpperCase()
-
   const filtered = usuarios.filter(u => {
-    const matchSearch = (u.nombre + ' ' + u.apellido).toLowerCase().includes(search.toLowerCase())
+    const matchSearch = u.nombreCompleto.toLowerCase().includes(search.toLowerCase())
     const matchRol = !filterRol || u.tipoUsuario === filterRol
     return matchSearch && matchRol
   })
 
   const stats = {
     total: usuarios.length,
-    admins: usuarios.filter(u => u.tipoUsuario === 'admin').length,
-    vendedores: usuarios.filter(u => u.tipoUsuario !== 'admin').length
+    admins: usuarios.filter(u => u.esAdmin).length,
+    vendedores: usuarios.filter(u => !u.esAdmin).length
   }
 
   const openModal = (u = null) => {
@@ -67,17 +79,26 @@ function Usuarios() {
     if (!form.nombre || !form.apellido) return showToast('Nombre y apellido obligatorios', 'error')
     if (!editingId && !form.password) return showToast('Debe asignar contraseña', 'error')
     if (rol === 'vendedor' && !form.idSucursal) return showToast('Seleccioná la sucursal del vendedor', 'error')
+    if (form.password && form.password.length < 4) return showToast('La contraseña debe tener al menos 4 caracteres', 'error')
     const obj = { ...form, tipoUsuario: rol }
     const url = `${API}/usuarios${editingId ? '/' + editingId : ''}`
-    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    const res = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast(editingId ? 'Actualizado ✓' : 'Creado ✓', 'success')
     setModalOpen(false)
     cargarDatos()
   }
 
+  const guardarSeguro = async () => {
+    if (guardando) return
+    setGuardando(true)
+    try { await guardar() } finally { setGuardando(false) }
+  }
+
   const eliminar = async (id) => {
-    if (!window.confirm('¿Eliminar usuario?')) return
-    await fetch(`${API}/usuarios/${id}`, { method: 'DELETE', headers: headers() })
+    const res = await fetch(`${API}/usuarios/${id}`, { method: 'DELETE', headers: headers() })
+    setAEliminar(null)
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast('Eliminado', 'error')
     cargarDatos()
   }
@@ -94,8 +115,8 @@ function Usuarios() {
 
           <div className="stats">
             <div className="stat-card"><div className="stat-label">Total Usuarios</div><div className="stat-value">{stats.total}</div></div>
-            <div className="stat-card"><div className="stat-label">Administradores</div><div className="stat-value" style={{color:'var(--info)'}}>{stats.admins}</div></div>
-            <div className="stat-card"><div className="stat-label">Vendedores</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.vendedores}</div></div>
+            <StatCard etiqueta="Administradores" valor={stats.admins} color="var(--info)" />
+            <StatCard etiqueta="Vendedores" valor={stats.vendedores} color="var(--success)" />
           </div>
 
           <div className="toolbar">
@@ -119,22 +140,24 @@ function Usuarios() {
                 <tr><th>ID</th><th>Usuario</th><th>Rol / Permisos</th><th>Acciones</th></tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {cargando ? (
+                  <tr><td colSpan="4"><Cargando mensaje="Cargando usuarios..." /></td></tr>
+                ) : filtered.length === 0 ? (
                   <tr><td colSpan="4"><div className="empty-state">No se encontraron usuarios</div></td></tr>
                 ) : filtered.map(u => (
                   <tr key={u.idUsuario}>
                     <td style={{color:'var(--muted)'}}>#{u.idUsuario}</td>
                     <td>
                       <div className="user-name">
-                        <div className="user-avatar">{getIniciales(u.nombre, u.apellido)}</div>
-                        {u.nombre} {u.apellido}
+                        <div className="user-avatar">{u.iniciales}</div>
+                        {u.nombreCompleto}
                       </div>
                     </td>
                     <td><span className={`badge ${u.tipoUsuario === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.tipoUsuario === 'admin' ? <><Icon d={icons.crown} /> Admin</> : <><Icon d={icons.cart} /> Vendedor</>}</span></td>
                     <td>
                       <div className="actions">
                         <button className="btn btn-ghost btn-sm" onClick={() => openModal(u)}><Icon d={icons.edit} style={{width:13, height:13}} /> Editar</button>
-                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(u.idUsuario)}><Icon d={icons.trash} /></button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => setAEliminar({ id: u.idUsuario, nombre: u.nombreCompleto })}><Icon d={icons.trash} /></button>
                       </div>
                     </td>
                   </tr>
@@ -146,10 +169,7 @@ function Usuarios() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModalOpen(false)}><Icon d={icons.x} /></button>
-            <h2>{editingId ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+        <Modal titulo={editingId ? 'Editar Usuario' : 'Nuevo Usuario'} onCerrar={() => setModalOpen(false)}>
             <div className="form-row">
               <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
               <div className="form-group"><label>Apellido</label><input className="form-control" value={form.apellido || ''} onChange={e => setForm({...form, apellido: e.target.value})} /></div>
@@ -157,7 +177,7 @@ function Usuarios() {
             <div className="form-group">
               <label>Contraseña de Acceso</label>
               <input className="form-control" type="password" placeholder="••••••••" value={form.password || ''} onChange={e => setForm({...form, password: e.target.value})} />
-              <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Dejar en blanco si no se desea modificar (al editar).</div>
+              {editingId && <div style={{fontSize:'.7rem', color:'var(--muted)', marginTop:'4px'}}>Dejar en blanco si no se desea modificar.</div>}
             </div>
             <div className="form-group">
               <label>Tipo de Usuario</label>
@@ -177,13 +197,21 @@ function Usuarios() {
           )}
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={guardar}>Guardar Usuario</button>
+              <button className="btn btn-primary" onClick={guardarSeguro} disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar Usuario'}</button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      {aEliminar && (
+        <ConfirmarModal
+          titulo="Eliminar usuario"
+          mensaje={<>¿Seguro que querés eliminar al usuario <strong>{aEliminar.nombre}</strong>? Va a perder el acceso al sistema y esta acción no se puede deshacer.</>}
+          onConfirmar={() => eliminar(aEliminar.id)}
+          onCancelar={() => setAEliminar(null)}
+        />
+      )}
+
+      <Toast toast={toast} />
     </div>
   )
 }

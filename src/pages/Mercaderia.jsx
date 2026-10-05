@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import { claveDia, aFecha } from '../utils/fechas'
+import Icon from '../components/Icon'
+import Toast from '../components/Toast'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Modal from '../components/Modal'
+import StatCard from '../components/StatCard'
+import Cargando from '../components/Cargando'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   cart: '<circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 3h2l2.6 12.4a2 2 0 0 0 2 1.6h9.4a2 2 0 0 0 2-1.6L22 7H6"/>',
@@ -26,7 +30,7 @@ function Mercaderia() {
   const [catalogoProd, setCatalogoProd] = useState([])
   const [historial, setHistorial] = useState([])
   const [compraItems, setCompraItems] = useState([])
-  const [form, setForm] = useState({ proveedor: '', factura: '', obs: '', fecha: new Date().toISOString().split('T')[0] })
+  const [form, setForm] = useState({ proveedor: '', factura: '', obs: '', fecha: claveDia(new Date()) })
   const [tipo, setTipo] = useState('ingrediente')
   const [itemId, setItemId] = useState('')
   const [cant, setCant] = useState(1)
@@ -34,9 +38,11 @@ function Mercaderia() {
   const [histSearch, setHistSearch] = useState('')
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [registrando, setRegistrando] = useState(false)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [sucursalActual])
+  useEffect(() => { setCargando(true); cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -44,40 +50,60 @@ function Mercaderia() {
   }
 
   const cargarDatos = async () => {
-    const [resIng, resProd, resCompras] = await Promise.all([
-      fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
-      fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
-      fetch(`${API}/compras?sucursal=${sucursalActual}`, { headers: headers() })
-    ])
-    const ing = await resIng.json()
-    const prod = await resProd.json()
-    const compras = await resCompras.json()
-    setCatalogoIng(Array.isArray(ing) ? ing : [])
-    setCatalogoProd(Array.isArray(prod) ? prod : [])
-    setHistorial(Array.isArray(compras) ? compras : [])
+    try {
+      const [resIng, resProd, resCompras] = await Promise.all([
+        fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/productos?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/compras?sucursal=${sucursalActual}`, { headers: headers() })
+      ])
+      const ing = await resIng.json()
+      const prod = await resProd.json()
+      const compras = await resCompras.json()
+      setCatalogoIng(Array.isArray(ing) ? ing : [])
+      setCatalogoProd(Array.isArray(prod) ? prod : [])
+      setHistorial(Array.isArray(compras) ? compras : [])
+    } catch (e) {
+      showToast('No se pudo conectar con el servidor', 'error')
+    } finally {
+      setCargando(false)
+    }
   }
 
-    const catalogo = tipo === 'ingrediente' ? catalogoIng : catalogoProd
+    const catalogo = tipo === 'ingrediente' ? catalogoIng : catalogoProd.filter(p => p.origen !== 'elaborado')
 
+    // Último precio cargado de un ítem: el de su compra más reciente;
+    // si nunca se compró, el precio de compra que tiene en el catálogo.
+    const ultimoPrecio = (item) => {
+      if (!item) return 0
+      const compras = [...historial].sort((a, b) =>
+        (aFecha(b.fecha) - aFecha(a.fecha)) || ((b.idIngreso || 0) - (a.idIngreso || 0)))
+      for (const c of compras) {
+        const it = c.items?.find(x => x.tipo === tipo && x.nombre === item.nombre)
+        if (it && it.precio > 0) return it.precio
+      }
+      return (tipo === 'ingrediente' ? item.precio : item.precioCompra) || 0
+    }
+
+    const itemElegido = catalogo.find(i => i.id === +itemId)
+    const precioPorDefecto = ultimoPrecio(itemElegido)
+
+    // Al cambiar de ítem el precio queda vacío: vacío significa "usar el último precio cargado".
     const handleItemChange = (id) => {
       setItemId(id)
-      const item = catalogo.find(i => i.id === +id)
-      if (item) {
-        const precioActual = tipo === 'ingrediente' ? item.precio : item.precioCompra
-        setPrecio(precioActual || 0)
-      }
+      setPrecio('')
     }
 
     const addItem = () => {
     if (!itemId) return showToast(`No seleccionaste ningún ${tipo}`, 'error')
     if (!cant || cant <= 0) return showToast('Cantidad inválida', 'error')
-    if (!precio || precio <= 0) return showToast('Precio inválido', 'error')
     const item = catalogo.find(i => i.id === +itemId)
+    const precioFinal = precio === '' ? ultimoPrecio(item) : +precio
+    if (precioFinal <= 0) return showToast(precio === '' ? 'Este ítem todavía no tiene un precio cargado: ingresalo en P. Unit' : 'Precio inválido', 'error')
     const existing = compraItems.findIndex(i => i.id === +itemId && i.tipo === tipo)
     if (existing >= 0) {
-      setCompraItems(prev => prev.map((i, idx) => idx === existing ? { ...i, cant: i.cant + +cant, subtotal: (i.cant + +cant) * i.precio } : i))
+      setCompraItems(prev => prev.map((i, idx) => idx === existing ? { ...i, cant: Math.round((i.cant + +cant) * 1000) / 1000, subtotal: Math.round((i.cant + +cant) * 1000) / 1000 * i.precio } : i))
     } else {
-      setCompraItems(prev => [...prev, { id: +itemId, nombre: item.nombre, tipo, cant: +cant, unidad: item.unidad, precio: +precio, subtotal: +cant * +precio }])
+      setCompraItems(prev => [...prev, { id: +itemId, nombre: item.nombre, tipo, cant: +cant, unidad: item.unidad, precio: precioFinal, subtotal: +cant * precioFinal }])
     }
     setCant(1)
     setPrecio('')
@@ -91,6 +117,8 @@ function Mercaderia() {
     if (!form.proveedor) return showToast('Ingresá el proveedor', 'error')
     if (!form.fecha) return showToast('Seleccioná la fecha', 'error')
     if (compraItems.length === 0) return showToast('Agregá ítems', 'error')
+    if (registrando) return
+    setRegistrando(true)
     try {
       const res = await fetch(`${API}/compras`, {
         method: 'POST',
@@ -100,11 +128,15 @@ function Mercaderia() {
       if (res.ok) {
         showToast('Ingreso registrado ✓', 'success')
         setCompraItems([])
-        setForm({ proveedor: '', factura: '', obs: '', fecha: new Date().toISOString().split('T')[0] })
+        setForm({ proveedor: '', factura: '', obs: '', fecha: claveDia(new Date()) })
         cargarDatos()
+      } else {
+        showToast(await mensajeError(res), 'error')
       }
     } catch (e) {
       showToast('Error al registrar compra', 'error')
+    } finally {
+      setRegistrando(false)
     }
   }
 
@@ -125,27 +157,14 @@ function Mercaderia() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.cart} /> Ingreso de Mercadería</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
           <div className="stats">
-            <div className="stat-card"><div className="stat-label">Total Compras</div><div className="stat-value" style={{color:'var(--primary)'}}>{stats.total}</div></div>
+            <StatCard etiqueta="Total Compras" valor={stats.total} color="var(--primary)" />
             <div className="stat-card"><div className="stat-label">Monto Total Invertido</div><div className="stat-value" style={{color:'var(--info)', fontSize:'1.2rem'}}>${stats.monto.toLocaleString()}</div></div>
-            <div className="stat-card"><div className="stat-label">Proveedores</div><div className="stat-value" style={{color:'var(--secondary)'}}>{stats.provs}</div></div>
+            <StatCard etiqueta="Proveedores" valor={stats.provs} color="var(--secondary)" />
           </div>
 
           <div className="layout">
@@ -178,17 +197,24 @@ function Mercaderia() {
                   </div>
                   <div className="form-group" style={{margin:0}}>
                     <label>Cantidad</label>
-                    <input className="form-control" type="number" min="1" value={cant} onChange={e => setCant(e.target.value)} />
+                    <input className="form-control" type="number" min={tipo === 'ingrediente' ? '0.001' : '1'} step={tipo === 'ingrediente' ? 'any' : '1'} value={cant} onChange={e => setCant(e.target.value)} />
                   </div>
                   <div className="form-group" style={{margin:0}}>
                     <label>P. Unit ($)</label>
-                    <input className="form-control" type="number" min="0" placeholder="0" value={precio} onChange={e => setPrecio(e.target.value)} />
+                    <input className="form-control" type="number" min="0" placeholder={precioPorDefecto > 0 ? String(precioPorDefecto) : '0'} value={precio} onChange={e => setPrecio(e.target.value)} />
                   </div>
                   <div className="form-group" style={{margin:0}}>
                     <label>&nbsp;</label>
                     <button className="btn btn-primary" onClick={addItem} style={{padding:'9px 14px'}}>＋</button>
                   </div>
                 </div>
+                {itemElegido && (
+                  <small className="form-ayuda" style={{marginTop:0, marginBottom:'8px'}}>
+                    {precioPorDefecto > 0
+                      ? `Último precio cargado: $${precioPorDefecto.toLocaleString('es-AR')}. Si dejás P. Unit vacío se usa ese.`
+                      : 'Este ítem todavía no tiene precio cargado: ingresalo en P. Unit.'}
+                  </small>
+                )}
                 <div className="items-list">
                   <table>
                     <thead><tr><th>Ítem</th><th>Tipo</th><th>Cant.</th><th>P.Unit</th><th>Subtotal</th><th></th></tr></thead>
@@ -217,7 +243,7 @@ function Mercaderia() {
                 <label>Observaciones</label>
                 <textarea className="form-control" rows="2" placeholder="Notas opcionales..." value={form.obs} onChange={e => setForm({...form, obs: e.target.value})} />
               </div>
-              <button className="btn btn-success btn-full" onClick={registrar}><Icon d={icons.check} /> Registrar Ingreso</button>
+              <button className="btn btn-success btn-full" onClick={registrar} disabled={registrando}><Icon d={icons.check} /> {registrando ? 'Registrando...' : 'Registrar Ingreso'}</button>
             </div>
 
             <div className="history-panel">
@@ -226,7 +252,9 @@ function Mercaderia() {
                 <input className="search-sm" placeholder="Buscar proveedor..." value={histSearch} onChange={e => setHistSearch(e.target.value)} />
               </div>
               <div>
-                {histFiltrado.length === 0 ? (
+                {cargando ? (
+                  <Cargando mensaje="Cargando ingresos..." compacto />
+                ) : histFiltrado.length === 0 ? (
                   <div className="empty-hist">Sin resultados</div>
                 ) : histFiltrado.map(c => {
                   const tot = c.items?.reduce((s, i) => s + i.subtotal, 0) || 0
@@ -253,10 +281,7 @@ function Mercaderia() {
       </div>
 
       {modal && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModal(null)}><Icon d={icons.x} /></button>
-            <h2>{modal.id} — {modal.proveedor}</h2>
+        <Modal titulo={<>{modal.id} — {modal.proveedor}</>} onCerrar={() => setModal(null)}>
             <div className="modal-meta" style={{display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.calendar} style={{width:14, height:14}} /> {modal.fecha} &nbsp;·&nbsp; <Icon d={icons.file} style={{width:14, height:14}} /> {modal.factura || '—'}</div>
             <table className="detail-table">
               <thead><tr><th>Ítem</th><th>Tipo</th><th>Cantidad</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
@@ -277,11 +302,10 @@ function Mercaderia() {
               <strong>${modal.items?.reduce((s, i) => s + i.subtotal, 0).toLocaleString()}</strong>
             </div>
             {modal.obs && <div style={{marginTop:'12px', fontSize:'.82rem', color:'var(--muted)', display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.edit} style={{width:14, height:14}} /> {modal.obs}</div>}
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      <Toast toast={toast} />
     </div>
   )
 }

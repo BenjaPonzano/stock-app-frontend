@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import Icon from '../components/Icon'
+import Producto from '../models/Producto'
+import Ingrediente from '../models/Ingrediente'
+import Toast from '../components/Toast'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Modal from '../components/Modal'
+import StatCard from '../components/StatCard'
+import Cargando from '../components/Cargando'
+import ConfirmarModal from '../components/ConfirmarModal'
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   box: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
@@ -23,24 +29,34 @@ function Ingredientes() {
   const [data, setData] = useState({ productos: [], ingredientes: [] })
   const [tab, setTab] = useState('productos')
   const [search, setSearch] = useState('')
-  const [filterCat, setFilterCat] = useState('')
   const [filterStock, setFilterStock] = useState('')
+  const [filterOrigen, setFilterOrigen] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState({})
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [aEliminar, setAEliminar] = useState(null)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
 
-  useEffect(() => { cargarDatos() }, [tab, sucursalActual])
+  useEffect(() => { setCargando(true); cargarDatos() }, [tab, sucursalActual])
 
   const cargarDatos = async () => {
-    const token = localStorage.getItem('token')
-    const res = await fetch(`${API}/${tab}?sucursal=${sucursalActual}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
-    })
-    const items = await res.json()
-    setData(prev => ({ ...prev, [tab]: Array.isArray(items) ? items : [] }))
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${API}/${tab}?sucursal=${sucursalActual}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      const items = await res.json()
+      const Modelo = tab === 'productos' ? Producto : Ingrediente
+      setData(prev => ({ ...prev, [tab]: Array.isArray(items) ? items.map(Modelo.desdeApi) : [] }))
+    } catch (e) {
+      showToast('No se pudo conectar con el servidor', 'error')
+    } finally {
+      setCargando(false)
+    }
   }
 
   const showToast = (msg, type = '') => {
@@ -48,18 +64,13 @@ function Ingredientes() {
     setTimeout(() => setToast(''), 2800)
   }
 
-  const getStockStatus = (item) => {
-    if (item.stock === 0) return 'out'
-    if (item.stock < item.stockMin) return 'low'
-    return 'ok'
-  }
+  const getStockStatus = (item) => item.estadoStock
 
-  const cats = [...new Set(data[tab].map(i => i.categoria))].sort()
   const filtered = data[tab].filter(i => {
-    const matchSearch = i.nombre?.toLowerCase().includes(search.toLowerCase()) || i.categoria?.toLowerCase().includes(search.toLowerCase())
-    const matchCat = !filterCat || i.categoria === filterCat
+    const matchSearch = i.nombre?.toLowerCase().includes(search.toLowerCase())
     const matchStock = !filterStock || getStockStatus(i) === filterStock
-    return matchSearch && matchCat && matchStock
+    const matchOrigen = tab !== 'productos' || !filterOrigen || i.origen === filterOrigen
+    return matchSearch && matchStock && matchOrigen
   })
 
   const stats = {
@@ -71,7 +82,7 @@ function Ingredientes() {
 
   const openModal = (item = null) => {
     setEditingId(item?.id || null)
-    setForm(item || {})
+    setForm(item || { unidad: 'u', ...(tab === 'productos' && { origen: 'comprado' }) })
     setModalOpen(true)
   }
 
@@ -79,7 +90,7 @@ function Ingredientes() {
     if (!form.nombre) return showToast('Nombre obligatorio', 'error')
     const token = localStorage.getItem('token')
     const url = `${API}/${tab}${editingId ? '/' + editingId : ''}`
-    await fetch(url, {
+    const res = await fetch(url, {
       method: editingId ? 'PUT' : 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,25 +98,30 @@ function Ingredientes() {
       },
         body: JSON.stringify({ ...form, idSucursal: form.idSucursal || sucursalActual })
     })
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast('Guardado ✓', 'success')
     setModalOpen(false)
     cargarDatos()
   }
 
+  const guardarSeguro = async () => {
+    if (guardando) return
+    setGuardando(true)
+    try { await saveItem() } finally { setGuardando(false) }
+  }
+
   const deleteItem = async (id) => {
-    console.log('ID a eliminar:', id)
-    if (!window.confirm('¿Eliminar?')) return
     const token = localStorage.getItem('token')
-    await fetch(`${API}/${tab}/${id}`, {
+    const res = await fetch(`${API}/${tab}/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': 'Bearer ' + token }
     })
+    setAEliminar(null)
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast('Eliminado', 'error')
     cargarDatos()
   }
 
-  const catOptions = ['Hamburguesas', 'Pizzas', 'Empanadas', 'Platos', 'Guarniciones', 'Bebidas', 'Otros']
-  const ingCatOptions = ['Carnes', 'Lácteos', 'Secos', 'Verduras', 'Enlatados', 'Condimentos', 'Otros']
   const isP = tab === 'productos'
 
   return (
@@ -114,20 +130,7 @@ function Ingredientes() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.box} /> Productos e Ingredientes</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
@@ -137,10 +140,10 @@ function Ingredientes() {
           </div>
 
           <div className="stats">
-            <div className="stat-card"><div className="stat-label">Total {tab}</div><div className="stat-value" style={{color:'var(--primary)'}}>{stats.total}</div></div>
-            <div className="stat-card"><div className="stat-label">Stock Normal</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.ok}</div></div>
-            <div className="stat-card"><div className="stat-label">Stock Bajo</div><div className="stat-value" style={{color:'var(--warning)'}}>{stats.low}</div></div>
-            <div className="stat-card"><div className="stat-label">Sin Stock</div><div className="stat-value" style={{color:'var(--danger)'}}>{stats.out}</div></div>
+            <StatCard etiqueta={`Total ${tab}`} valor={stats.total} color="var(--primary)" />
+            <StatCard etiqueta="Stock Normal" valor={stats.ok} color="var(--success)" />
+            <StatCard etiqueta="Stock Bajo" valor={stats.low} color="var(--warning)" />
+            <StatCard etiqueta="Sin Stock" valor={stats.out} color="var(--danger)" />
           </div>
 
           <div className="toolbar">
@@ -148,16 +151,19 @@ function Ingredientes() {
               <Icon d={icons.search} />
               <input className="search-box" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <select className="filter-select" value={filterCat} onChange={e => setFilterCat(e.target.value)}>
-              <option value="">Todas las categorías</option>
-              {cats.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
             <select className="filter-select" value={filterStock} onChange={e => setFilterStock(e.target.value)}>
               <option value="">Todos los estados</option>
               <option value="ok">Stock OK</option>
               <option value="low">Stock Bajo</option>
               <option value="out">Sin Stock</option>
             </select>
+            {tab === 'productos' && (
+              <select className="filter-select" value={filterOrigen} onChange={e => setFilterOrigen(e.target.value)}>
+                <option value="">Todos los orígenes</option>
+                <option value="comprado">Se compra hecho</option>
+                <option value="elaborado">Se elabora</option>
+              </select>
+            )}
             <button className="btn btn-primary" onClick={() => openModal()}>+ Nuevo</button>
           </div>
 
@@ -165,14 +171,16 @@ function Ingredientes() {
             <table>
               <thead>
                 <tr>
-                  <th>Nombre</th><th>Categoría</th><th>Stock</th><th>Stock Mín.</th>
+                  <th>Nombre</th>{isP && <th>Origen</th>}<th>Stock</th><th>Stock Mín.</th>
                   {isP ? <th>Precio Venta</th> : <th>Precio</th>}
                   <th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan="7"><div className="empty-state">No se encontraron resultados</div></td></tr>
+                {cargando ? (
+                  <tr><td colSpan={isP ? 7 : 6}><Cargando mensaje={isP ? 'Cargando productos...' : 'Cargando ingredientes...'} /></td></tr>
+                ) : filtered.length === 0 ? (
+                  <tr><td colSpan={isP ? 7 : 6}><div className="empty-state">No se encontraron resultados</div></td></tr>
                 ) : filtered.map(item => {
                   const s = getStockStatus(item)
                   const badgeMap = { ok: ['badge-ok', 'check', 'Normal'], low: ['badge-low', 'alert', 'Bajo'], out: ['badge-out', 'xCircle', 'Sin Stock'] }
@@ -181,7 +189,11 @@ function Ingredientes() {
                   return (
                     <tr key={item.id}>
                       <td><strong>{item.nombre}</strong></td>
-                      <td><span className="badge badge-cat">{item.categoria}</span></td>
+                      {isP && (
+                        <td>
+                          <span className={`badge ${item.seElabora ? 'badge-prod' : 'badge-cat'}`}>{item.etiquetaOrigen}</span>
+                        </td>
+                      )}
                       <td>
                         <div className="stock-bar-wrap">
                           <span style={{minWidth:'50px'}}>{item.stock} {item.unidad}</span>
@@ -200,7 +212,7 @@ function Ingredientes() {
                           <button
                             className="btn btn-sm"
                             style={{background:'#fadbd8', color:'#c0392b'}}
-                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }}
+                            onClick={(e) => { e.stopPropagation(); setAEliminar({ id: item.id, nombre: item.nombre }) }}
                           ><Icon d={icons.trash} /></button>
                         </div>
                       </td>
@@ -214,28 +226,31 @@ function Ingredientes() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModalOpen(false)}><Icon d={icons.x} /></button>
-            <h2>{editingId ? 'Editar' : 'Nuevo'}</h2>
+        <Modal titulo={editingId ? 'Editar' : 'Nuevo'} onCerrar={() => setModalOpen(false)}>
             <div className="form-group"><label>Nombre</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Categoría</label>
-                <select className="form-control" value={form.categoria || ''} onChange={e => setForm({...form, categoria: e.target.value})}>
-                  {(isP ? catOptions : ingCatOptions).map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Unidad</label>
-                <select className="form-control" value={form.unidad || 'u'} onChange={e => setForm({...form, unidad: e.target.value})}>
-                  {['u','g','kg','ml','l'].map(u => <option key={u}>{u}</option>)}
-                </select>
-              </div>
+            <div className="form-group">
+              <label>Unidad</label>
+              <select className="form-control" value={form.unidad || 'u'} onChange={e => setForm({...form, unidad: e.target.value})}>
+                {['u','g','kg','ml','l'].map(u => <option key={u}>{u}</option>)}
+              </select>
             </div>
+            {isP && (
+              <div className="form-group">
+                <label>¿Cómo se obtiene?</label>
+                <select className="form-control" value={form.origen || 'comprado'} onChange={e => setForm({...form, origen: e.target.value})}>
+                  <option value="comprado">Se compra hecho (aparece en Ingreso de Mercadería)</option>
+                  <option value="elaborado">Se elabora en el local (aparece en Recetas)</option>
+                </select>
+                <small className="form-ayuda">
+                  {(form.origen || 'comprado') === 'elaborado'
+                    ? 'Lo preparás vos a partir de ingredientes. Necesita una receta y su stock sube al registrar una Elaboración.'
+                    : 'Lo comprás ya listo a un proveedor. Su stock sube al registrar un Ingreso de Mercadería.'}
+                </small>
+              </div>
+            )}
             <div className="form-row">
-              <div className="form-group"><label>Stock actual</label><input className="form-control" type="number" value={form.stock || 0} onChange={e => setForm({...form, stock: +e.target.value})} /></div>
-              <div className="form-group"><label>Stock mínimo</label><input className="form-control" type="number" value={form.stockMin || 0} onChange={e => setForm({...form, stockMin: +e.target.value})} /></div>
+              <div className="form-group"><label>Stock actual</label><input className="form-control" type="number" min="0" step={tab === 'ingredientes' ? 'any' : '1'} value={form.stock || 0} onChange={e => setForm({...form, stock: +e.target.value})} /></div>
+              <div className="form-group"><label>Stock mínimo</label><input className="form-control" type="number" min="0" step={tab === 'ingredientes' ? 'any' : '1'} value={form.stockMin || 0} onChange={e => setForm({...form, stockMin: +e.target.value})} /></div>
             </div>
             {isP ? (
               <div className="form-group">
@@ -250,13 +265,21 @@ function Ingredientes() {
             )}
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={saveItem}>Guardar</button>
+              <button className="btn btn-primary" onClick={guardarSeguro} disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar'}</button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      {aEliminar && (
+        <ConfirmarModal
+          titulo={isP ? 'Eliminar producto' : 'Eliminar ingrediente'}
+          mensaje={<>¿Seguro que querés eliminar <strong>{aEliminar.nombre}</strong>? Dejará de aparecer en los listados{isP ? ' y en Ventas' : ' y en las recetas nuevas'}; el historial ya registrado se conserva.</>}
+          onConfirmar={() => deleteItem(aEliminar.id)}
+          onCancelar={() => setAEliminar(null)}
+        />
+      )}
+
+      <Toast toast={toast} />
     </div>
   )
 }
