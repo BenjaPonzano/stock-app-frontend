@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import { claveDia } from '../utils/fechas'
+import Icon from '../components/Icon'
+import Toast from '../components/Toast'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Modal from '../components/Modal'
+import StatCard from '../components/StatCard'
+import Cargando from '../components/Cargando'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 const pagoLabels = { ef: 'Efectivo', mp: 'Mercado Pago', td: 'Tarjeta Déb.', tc: 'Tarjeta Cré.' }
 const pagoIconKeys = { ef: 'banknote', mp: 'smartphone', td: 'card', tc: 'card' }
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   money: '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.6-5 3.5 2.2 3 5 3.5 5 1.6 5 3.5-2.2 3.5-5 3.5-5-1.6-5-3.5"/>',
@@ -36,7 +40,6 @@ function Ventas() {
   const [productos, setProductos] = useState([])
   const [carrito, setCarrito] = useState([])
   const [pago, setPago] = useState('ef')
-  const [catActiva, setCatActiva] = useState('Todos')
   const [historial, setHistorial] = useState([])
   const [descuento, setDescuento] = useState(0)
   const [conCuanto, setConCuanto] = useState('')
@@ -46,11 +49,13 @@ function Ventas() {
   const [ticket, setTicket] = useState(null)
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [registrando, setRegistrando] = useState(false)
   const [stockWarning, setStockWarning] = useState(null)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { cargarDatos() }, [sucursalActual])
+  useEffect(() => { setCargando(true); cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -80,14 +85,14 @@ function Ventas() {
       })))
     } catch (e) {
       showToast('Error de conexión', 'error')
+    } finally {
+      setCargando(false)
     }
   }
 
-  const cats = ['Todos', ...new Set(productos.map(p => p.categoria))]
   const prodsFiltrados = productos.filter(p => {
-    const matchCat = catActiva === 'Todos' || p.categoria === catActiva
     const matchSearch = !search || p.nombre.toLowerCase().includes(search.toLowerCase())
-    return matchCat && matchSearch
+    return matchSearch
   })
 
   const addToCart = (prod) => {
@@ -114,6 +119,8 @@ function Ventas() {
 
   const registrarVenta = async (forzar = false) => {
     if (carrito.length === 0) return showToast('El carrito está vacío', 'error')
+    if (registrando) return
+    setRegistrando(true)
     try {
       const res = await fetch(`${API}/ventas`, {
         method: 'POST',
@@ -128,7 +135,7 @@ function Ventas() {
         setStockWarning(data.items || [])
         return
       }
-      if (!res.ok) throw new Error()
+      if (!res.ok) return showToast(await mensajeError(res, 'Error al registrar la venta'), 'error')
       const venta = await res.json()
       const newId = 'V-' + String(venta.idCompra).padStart(4, '0')
       setTicket({ id: newId, items: [...carrito], total, descuento, subtotal, pago })
@@ -140,6 +147,8 @@ function Ventas() {
       cargarDatos()
     } catch (e) {
       showToast('Error al registrar la venta', 'error')
+    } finally {
+      setRegistrando(false)
     }
   }
 
@@ -155,38 +164,25 @@ function Ventas() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.money} /> Ventas</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
+          {esAdmin && (
           <div className="stats">
-            <div className="stat-card"><div className="stat-label">Ventas Hoy</div><div className="stat-value" style={{color:'var(--primary)'}}>{historial.filter(v => v.fecha?.startsWith(new Date().toISOString().split('T')[0])).length}</div></div>
+            <StatCard etiqueta="Ventas Hoy" valor={historial.filter(v => claveDia(v.fecha) === claveDia(new Date())).length} color="var(--primary)" />
             <div className="stat-card"><div className="stat-label">Total Histórico</div><div className="stat-value" style={{color:'var(--success)', fontSize:'1.2rem'}}>${historial.reduce((s, v) => s + v.total, 0).toLocaleString()}</div></div>
           </div>
+          )}
 
           <div className="layout">
             <div>
               <div className="panel" style={{marginBottom:'16px'}}>
                 <div className="panel-header"><h2><Icon d={icons.box} /> Seleccioná productos</h2></div>
                 <div className="catalogo-search"><Icon d={icons.search} /><input id="prodSearch" placeholder="Buscar producto..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-                <div className="catalogo-cats">
-                  {cats.map(c => <div key={c} className={`cat-chip ${c === catActiva ? 'active' : ''}`} onClick={() => setCatActiva(c)}>{c}</div>)}
-                </div>
                 <div className="catalogo-grid">
-                  {prodsFiltrados.map(p => (
+                  {cargando && <div style={{gridColumn:'1 / -1'}}><Cargando mensaje="Cargando productos..." /></div>}
+                  {!cargando && prodsFiltrados.map(p => (
                     <div key={p.id} className={`prod-card ${p.stock === 0 ? 'sin-stock' : ''}`} onClick={() => addToCart(p)}>
                       <span className={`prod-stock-badge ${p.stock === 0 ? 'stock-out' : p.stock < 5 ? 'stock-low' : 'stock-ok'}`}>
                         {p.stock === 0 ? 'Sin stock' : `${p.stock} u.`}
@@ -258,7 +254,7 @@ function Ventas() {
                     </div>
                   )}
 
-                  <button className="btn btn-success btn-full" onClick={() => registrarVenta()} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}><Icon d={icons.check} /> Confirmar Venta</button>
+                  <button className="btn btn-success btn-full" onClick={() => registrarVenta()} disabled={registrando} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}><Icon d={icons.check} /> {registrando ? 'Registrando...' : 'Confirmar Venta'}</button>
 
                   {ticket && (
                     <div className="ticket-box show">
@@ -293,7 +289,9 @@ function Ventas() {
                 </select>
               </div>
               <div>
-                {histFiltrado.length === 0 ? (
+                {cargando ? (
+                  <Cargando mensaje="Cargando ventas..." compacto />
+                ) : histFiltrado.length === 0 ? (
                   <div className="empty-hist"><div className="icon"><Icon d={icons.receipt} style={{width:32, height:32}} /></div>Sin ventas registradas</div>
                 ) : histFiltrado.map(v => (
                   <div key={v.id} className="venta-card" onClick={() => setModal(v)}>
@@ -321,10 +319,7 @@ function Ventas() {
       </div>
 
       {modal && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModal(null)}><Icon d={icons.x} /></button>
-            <h2><Icon d={icons.receipt} /> {modal.id}</h2>
+        <Modal titulo={<><Icon d={icons.receipt} /> {modal.id}</>} onCerrar={() => setModal(null)}>
             <div className="modal-meta" style={{display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.calendar} style={{width:14, height:14}} /> {new Date(modal.fecha).toLocaleDateString('es-AR')} &nbsp;·&nbsp; <Icon d={icons[pagoIconKeys[modal.pago]]} style={{width:14, height:14}} /> {pagoLabels[modal.pago]}</div>
             <table className="detail-table">
               <thead><tr><th>Producto</th><th>Cant.</th><th>P. Unit.</th><th>Subtotal</th></tr></thead>
@@ -336,14 +331,10 @@ function Ventas() {
               <div><div style={{fontSize:'.78rem', color:'var(--muted)'}}>Descuento</div><div>{modal.descuento > 0 ? `${modal.descuento}%` : 'Sin descuento'}</div></div>
               <div style={{textAlign:'right'}}><div style={{fontSize:'.78rem', color:'var(--muted)'}}>Total cobrado</div><div style={{fontSize:'1.2rem', fontWeight:700, color:'var(--success)'}}>${modal.total?.toLocaleString()}</div></div>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
             {stockWarning && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setStockWarning(null)}><Icon d={icons.x} /></button>
-            <h2 style={{display:'flex', alignItems:'center', gap:'8px'}}><Icon d={icons.alert} /> Stock insuficiente</h2>
+        <Modal titulo={<><Icon d={icons.alert} /> Stock insuficiente</>} onCerrar={() => setStockWarning(null)}>
             <p style={{color:'var(--muted)', marginBottom:'12px'}}>Estos productos no tienen stock suficiente:</p>
             <table className="detail-table">
               <thead><tr><th>Producto</th><th>Stock disponible</th><th>Cantidad pedida</th></tr></thead>
@@ -355,13 +346,12 @@ function Ventas() {
             </table>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setStockWarning(null)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={() => registrarVenta(true)}>Forzar venta igual</button>
+              <button className="btn btn-primary" onClick={() => registrarVenta(true)} disabled={registrando}>{registrando ? 'Registrando...' : 'Forzar venta igual'}</button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      <Toast toast={toast} />
     </div>
   )
 }

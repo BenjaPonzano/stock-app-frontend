@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { API } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import { claveDia, aFecha } from '../utils/fechas'
+import Icon from '../components/Icon'
+import Toast from '../components/Toast'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Cargando from '../components/Cargando'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   trend: '<polyline points="3 17 9 11 13 15 21 6"/><polyline points="15 6 21 6 21 12"/>',
@@ -33,9 +35,10 @@ function Reportes() {
   const [r4Search, setR4Search] = useState('')
   const [r4Fecha, setR4Fecha] = useState('')
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  useEffect(() => { cargarDatos() }, [sucursalActual])
+  useEffect(() => { setCargando(true); cargarDatos() }, [sucursalActual])
 
   const showToast = (msg, type = '') => {
     setToast({ msg, type })
@@ -64,12 +67,14 @@ function Reportes() {
       showToast('Datos actualizados ✓', 'success')
     } catch (e) {
       showToast('Error al conectar', 'error')
+    } finally {
+      setCargando(false)
     }
   }
 
   const formatFecha = (f) => {
     if (!f) return ''
-    const d = new Date(f)
+    const d = aFecha(f)
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
   }
 
@@ -86,14 +91,14 @@ function Reportes() {
   let combined = []
   if (r1Tipo === 'todos' || r1Tipo === 'producto') combined = [...combined, ...productos.map(p => ({ ...p, tipoItem: 'producto' }))]
   if (r1Tipo === 'todos' || r1Tipo === 'ingrediente') combined = [...combined, ...ingredientes.map(i => ({ ...i, tipoItem: 'ingrediente' }))]
-  const rep1 = combined.filter(i => i.nombre?.toLowerCase().includes(r1Search.toLowerCase()) || i.categoria?.toLowerCase().includes(r1Search.toLowerCase()))
+  const rep1 = combined.filter(i => i.nombre?.toLowerCase().includes(r1Search.toLowerCase()))
 
   // Rep 2 - Ingresos
   let ingresosFlat = []
   compras.forEach(c => c.items?.forEach(i => ingresosFlat.push({ fecha: c.fecha, proveedor: c.proveedor, factura: c.factura, itemNombre: i.nombre, cant: i.cant, unidad: i.unidad, subtotal: i.subtotal })))
   const rep2 = ingresosFlat.filter(i => {
     const matchStr = i.proveedor?.toLowerCase().includes(r2Search.toLowerCase()) || i.itemNombre?.toLowerCase().includes(r2Search.toLowerCase())
-    const matchDate = !r2Fecha || i.fecha?.startsWith(r2Fecha)
+    const matchDate = !r2Fecha || claveDia(i.fecha).startsWith(r2Fecha)
     return matchStr && matchDate
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
@@ -102,14 +107,14 @@ function Reportes() {
     const idStr = 'V-' + String(v.idCompra).padStart(4, '0')
     const matchSearch = !r3Search || idStr.toLowerCase().includes(r3Search.toLowerCase())
     const matchPago = !r3Pago || v.tipoPago === r3Pago
-    const matchDate = !r3Fecha || v.fecha?.toString().startsWith(r3Fecha)
+    const matchDate = !r3Fecha || claveDia(v.fecha).startsWith(r3Fecha)
     return matchSearch && matchPago && matchDate
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
   // Rep 4 - Elaboraciones
   const rep4 = elaboraciones.filter(e => {
     const matchSearch = !r4Search || e.recetaNombre?.toLowerCase().includes(r4Search.toLowerCase())
-    const matchDate = !r4Fecha || e.fecha?.toString().startsWith(r4Fecha)
+    const matchDate = !r4Fecha || claveDia(e.fecha).startsWith(r4Fecha)
     return matchSearch && matchDate
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
@@ -119,20 +124,7 @@ function Reportes() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.trend} /> Reportes y Estadísticas</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
@@ -152,7 +144,7 @@ function Reportes() {
               <div className="toolbar">
                 <div className="search-wrap">
                   <Icon d={icons.search} />
-                  <input className="search-box" placeholder="Buscar por nombre o categoría..." value={r1Search} onChange={e => setR1Search(e.target.value)} />
+                  <input className="search-box" placeholder="Buscar por nombre..." value={r1Search} onChange={e => setR1Search(e.target.value)} />
                 </div>
                 <select className="filter-select" value={r1Tipo} onChange={e => setR1Tipo(e.target.value)}>
                   <option value="todos">Todos los ítems</option>
@@ -162,10 +154,12 @@ function Reportes() {
               </div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Tipo</th><th>Nombre</th><th>Categoría</th><th>Stock Actual</th><th>Precio Actual</th></tr></thead>
+                  <thead><tr><th>Tipo</th><th>Nombre</th><th>Stock Actual</th><th>Precio Actual</th></tr></thead>
                   <tbody>
-                    {rep1.length === 0 ? (
-                      <tr><td colSpan="5"><div className="empty-state">No hay stock que coincida</div></td></tr>
+                    {cargando ? (
+                      <tr><td colSpan="4"><Cargando compacto /></td></tr>
+                    ) : rep1.length === 0 ? (
+                      <tr><td colSpan="4"><div className="empty-state">No hay stock que coincida</div></td></tr>
                     ) : rep1.map((item, i) => {
                       const esIng = item.tipoItem === 'ingrediente'
                       const precio = esIng ? item.precio : item.precioVenta
@@ -174,7 +168,6 @@ function Reportes() {
                         <tr key={i}>
                           <td><span className={`badge ${esIng ? 'badge-warning' : 'badge-primary'}`}>{item.tipoItem.toUpperCase()}</span></td>
                           <td><strong>{item.nombre}</strong></td>
-                          <td style={{color:'var(--muted)'}}>{item.categoria}</td>
                           <td><span className={`badge ${badgeClass}`}>{item.stock} {item.unidad}</span></td>
                           <td><strong>${precio?.toLocaleString()}</strong></td>
                         </tr>
@@ -199,7 +192,9 @@ function Reportes() {
                 <table>
                   <thead><tr><th>Fecha Compra</th><th>Nº Factura</th><th>Proveedor</th><th>Ítem Comprado</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
                   <tbody>
-                    {rep2.length === 0 ? (
+                    {cargando ? (
+                      <tr><td colSpan="6"><Cargando compacto /></td></tr>
+                    ) : rep2.length === 0 ? (
                       <tr><td colSpan="6"><div className="empty-state">No hay ingresos registrados</div></td></tr>
                     ) : rep2.map((i, idx) => (
                       <tr key={idx}>
@@ -237,7 +232,9 @@ function Reportes() {
                 <table>
                   <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Ítems</th><th>Forzada</th></tr></thead>
                   <tbody>
-                    {rep3.length === 0 ? (
+                    {cargando ? (
+                      <tr><td colSpan="7"><Cargando compacto /></td></tr>
+                    ) : rep3.length === 0 ? (
                       <tr><td colSpan="7"><div className="empty-state">No hay ventas registradas</div></td></tr>
                     ) : rep3.map((v, i) => {
                       const idStr = 'V-' + String(v.idCompra).padStart(4, '0')
@@ -272,7 +269,9 @@ function Reportes() {
                 <table>
                   <thead><tr><th>Nº Lote</th><th>Fecha</th><th>Receta</th><th>Producto Generado</th><th>Cant. Producida</th><th>Ingredientes</th></tr></thead>
                   <tbody>
-                    {rep4.length === 0 ? (
+                    {cargando ? (
+                      <tr><td colSpan="6"><Cargando compacto /></td></tr>
+                    ) : rep4.length === 0 ? (
                       <tr><td colSpan="6"><div className="empty-state">No hay elaboraciones para este filtro</div></td></tr>
                     ) : rep4.map((e, i) => (
                       <tr key={i}>
@@ -295,7 +294,7 @@ function Reportes() {
 
         </div>
       </div>
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      <Toast toast={toast} />
     </div>
   )
 }

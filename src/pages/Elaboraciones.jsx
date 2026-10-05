@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import { claveDia } from '../utils/fechas'
+import { convertir, redondear, formatoCantidad } from '../utils/unidades'
+import Icon from '../components/Icon'
+import Toast from '../components/Toast'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Modal from '../components/Modal'
+import StatCard from '../components/StatCard'
+import Cargando from '../components/Cargando'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   chef: '<path d="M12 2c1 2-1 3-1 5 0 1.5 1 2.5 2.5 2.5S16 11.5 16 10c0-1-.5-1.5-1-3 2 1.5 4 4.5 4 7.5a6.5 6.5 0 0 1-13 0c0-3.5 2-6.5 6-9.5z"/>',
@@ -36,12 +41,15 @@ function Elaboraciones() {
   const [histReceta, setHistReceta] = useState('')
   const [modal, setModal] = useState(null)
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [registrando, setRegistrando] = useState(false)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
   useEffect(() => {
     const now = new Date()
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     setFecha(now.toISOString().slice(0, 16))
+    setCargando(true)
     cargarDatos()
   }, [sucursalActual])
 
@@ -51,33 +59,42 @@ function Elaboraciones() {
   }
 
   const cargarDatos = async () => {
-    const [resR, resI, resE] = await Promise.all([
-      fetch(`${API}/recetas?sucursal=${sucursalActual}`, { headers: headers() }),
-      fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
-      fetch(`${API}/elaboraciones?sucursal=${sucursalActual}`, { headers: headers() })
-    ])
-    const recetas = await resR.json()
-    setRecetas(Array.isArray(recetas) ? recetas : [])
-    const ing = await resI.json()
-    const stockMap = {}
-    if (Array.isArray(ing)) ing.forEach(i => stockMap[i.id] = { stock: i.stock, nombre: i.nombre, unidad: i.unidad })
-    setStockIngredientes(stockMap)
-    const elaboraciones = await resE.json()
-    setHistorial(Array.isArray(elaboraciones) ? elaboraciones : [])
+    try {
+      const [resR, resI, resE] = await Promise.all([
+        fetch(`${API}/recetas?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/ingredientes?sucursal=${sucursalActual}`, { headers: headers() }),
+        fetch(`${API}/elaboraciones?sucursal=${sucursalActual}`, { headers: headers() })
+      ])
+      const recetas = await resR.json()
+      setRecetas(Array.isArray(recetas) ? recetas : [])
+      const ing = await resI.json()
+      const stockMap = {}
+      if (Array.isArray(ing)) ing.forEach(i => stockMap[i.id] = { stock: i.stock, nombre: i.nombre, unidad: i.unidad })
+      setStockIngredientes(stockMap)
+      const elaboraciones = await resE.json()
+      setHistorial(Array.isArray(elaboraciones) ? elaboraciones : [])
+    } catch (e) {
+      showToast('No se pudo conectar con el servidor', 'error')
+    } finally {
+      setCargando(false)
+    }
   }
   const getConsumo = () => {
     if (!selectedReceta) return []
     return selectedReceta.ingredientes?.map(ing => {
       const info = stockIngredientes[ing.idIngrediente]
+      // El stock se lleva en la unidad del ingrediente (ej. kg) y la receta puede usar otra (ej. g)
+      const unidadStock = info?.unidad || ing.unidad
       const stockActual = info?.stock ?? 0
       const aConsumir = ing.cant * cantidad
-      const stockFinal = stockActual - aConsumir
-      return { ...ing, stockActual, aConsumir, stockFinal, faltante: stockFinal < 0 }
+      const aConsumirStock = redondear(convertir(aConsumir, ing.unidad || unidadStock, unidadStock) ?? aConsumir)
+      const stockFinal = redondear(stockActual - aConsumirStock)
+      return { ...ing, unidadStock, stockActual, aConsumir, aConsumirStock, stockFinal, faltante: stockFinal < 0 }
     }) || []
   }
 
   const consumo = getConsumo()
-  const warnings = consumo.filter(i => i.faltante).map(i => `${i.nombre}: faltan ${Math.abs(i.stockFinal)} ${i.unidad}`)
+  const warnings = consumo.filter(i => i.faltante).map(i => `${i.nombre}: faltan ${formatoCantidad(Math.abs(i.stockFinal))} ${i.unidadStock}`)
 
   const registrar = async () => {
     if (!selectedReceta) return showToast('Seleccioná una receta', 'error')
@@ -86,6 +103,9 @@ function Elaboraciones() {
     if (warnings.length > 0) {
       if (!window.confirm(`⚠️ Stock insuficiente en:\n${consumo.filter(i => i.faltante).map(i => i.nombre).join(', ')}\n¿Forzar registro?`)) return
     }
+
+    if (registrando) return
+    setRegistrando(true)
 
     const payload = {
       idReceta: selectedReceta.id,
@@ -96,7 +116,7 @@ function Elaboraciones() {
       obs,
       ingredientesConsumidos: selectedReceta.ingredientes?.map(i => ({
         idIngrediente: i.idIngrediente,
-        cant: i.cant * cantidad
+        cant: redondear(convertir(i.cant * cantidad, i.unidad || stockIngredientes[i.idIngrediente]?.unidad, stockIngredientes[i.idIngrediente]?.unidad || i.unidad) ?? i.cant * cantidad)
       }))
     }
 
@@ -112,9 +132,13 @@ function Elaboraciones() {
         setCantidad(1)
         setObs('')
         cargarDatos()
+      } else {
+        showToast(await mensajeError(res), 'error')
       }
     } catch (e) {
       showToast('Error al registrar', 'error')
+    } finally {
+      setRegistrando(false)
     }
   }
 
@@ -126,7 +150,7 @@ function Elaboraciones() {
 
   const stats = {
     total: historial.length,
-    hoy: historial.filter(e => e.fecha?.toString().startsWith(new Date().toISOString().slice(0, 10))).length,
+    hoy: historial.filter(e => claveDia(e.fecha) === claveDia(new Date())).length,
     recetasUsadas: new Set(historial.map(e => e.recetaId)).size,
     unidades: historial.reduce((s, e) => s + (e.productoGenerado?.cantidad || 0), 0)
   }
@@ -137,29 +161,18 @@ function Elaboraciones() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.chef} /> Elaboraciones Internas</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
+          {esAdmin && (
           <div className="stats">
-            <div className="stat-card"><div className="stat-label">Total Elaboraciones</div><div className="stat-value" style={{color:'var(--primary)'}}>{stats.total}</div></div>
-            <div className="stat-card"><div className="stat-label">Elaboraciones Hoy</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.hoy}</div></div>
-            <div className="stat-card"><div className="stat-label">Recetas Utilizadas</div><div className="stat-value" style={{color:'var(--info)'}}>{stats.recetasUsadas}</div></div>
-            <div className="stat-card"><div className="stat-label">Unidades Producidas</div><div className="stat-value" style={{color:'var(--secondary)'}}>{stats.unidades}</div></div>
+            <StatCard etiqueta="Total Elaboraciones" valor={stats.total} color="var(--primary)" />
+            <StatCard etiqueta="Elaboraciones Hoy" valor={stats.hoy} color="var(--success)" />
+            <StatCard etiqueta="Recetas Utilizadas" valor={stats.recetasUsadas} color="var(--info)" />
+            <StatCard etiqueta="Unidades Producidas" valor={stats.unidades} color="var(--secondary)" />
           </div>
+          )}
 
           <div className="layout">
             <div className="panel">
@@ -169,7 +182,9 @@ function Elaboraciones() {
                 <div className="form-group">
                   <label>1. Seleccioná la receta</label>
                   <div id="recetasList">
-                    {recetas.length === 0 ? (
+                    {cargando ? (
+                      <Cargando mensaje="Cargando recetas..." compacto />
+                    ) : recetas.length === 0 ? (
                       <div className="empty-hist">No hay recetas cargadas</div>
                     ) : recetas.map(r => (
                       <div key={r.id} className={`receta-card ${selectedReceta?.id === r.id ? 'selected' : ''}`} onClick={() => setSelectedReceta(r)}>
@@ -188,8 +203,11 @@ function Elaboraciones() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>2. Cantidad a elaborar</label>
+                    <label>2. Lotes a elaborar</label>
                     <input className="form-control" type="number" min="1" value={cantidad} onChange={e => setCantidad(+e.target.value)} />
+                    {selectedReceta && (
+                      <small className="form-ayuda">Cada lote rinde {selectedReceta.cantPorLote || 1} u. de {selectedReceta.productoNombre}.</small>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>Fecha y hora</label>
@@ -208,10 +226,10 @@ function Elaboraciones() {
                         ) : consumo.map((ing, i) => (
                           <tr key={i}>
                             <td><strong>{ing.nombre}</strong></td>
-                            <td>{ing.stockActual} {ing.unidad}</td>
-                            <td style={{color: ing.faltante ? 'var(--danger)' : 'var(--text)'}}>{ing.aConsumir} {ing.unidad}</td>
-                            <td style={{color: ing.stockFinal < 0 ? 'var(--danger)' : ing.stockFinal < ing.cant ? 'var(--warning)' : 'var(--success)'}}>
-                              {ing.stockFinal < 0 ? <strong style={{display:'inline-flex', alignItems:'center', gap:'3px'}}><Icon d={icons.alert} style={{width:12, height:12}} /> {ing.stockFinal}</strong> : ing.stockFinal} {ing.unidad}
+                            <td>{formatoCantidad(ing.stockActual)} {ing.unidadStock}</td>
+                            <td style={{color: ing.faltante ? 'var(--danger)' : 'var(--text)'}}>{formatoCantidad(ing.aConsumir)} {ing.unidad}{ing.unidad !== ing.unidadStock && <div className="form-ayuda">= {formatoCantidad(ing.aConsumirStock)} {ing.unidadStock}</div>}</td>
+                            <td style={{color: ing.stockFinal < 0 ? 'var(--danger)' : ing.stockFinal < ing.aConsumirStock ? 'var(--warning)' : 'var(--success)'}}>
+                              {ing.stockFinal < 0 ? <strong style={{display:'inline-flex', alignItems:'center', gap:'3px'}}><Icon d={icons.alert} style={{width:12, height:12}} /> {formatoCantidad(ing.stockFinal)}</strong> : formatoCantidad(ing.stockFinal)} {ing.unidadStock}
                             </td>
                           </tr>
                         ))}
@@ -227,7 +245,7 @@ function Elaboraciones() {
                   <div className="form-group">
                     <label>4. Producto generado</label>
                     <div style={{background:'var(--bg)', borderRadius:'8px', padding:'12px', fontSize:'.88rem', border:'1px solid var(--border)'}}>
-                      <strong style={{color:'var(--primary)'}}>{selectedReceta.cantPorLote * cantidad} u.</strong>
+                      <strong style={{color:'var(--primary)'}}>{(selectedReceta.cantPorLote || 1) * cantidad} u.</strong>
                       <span style={{color:'var(--muted)', marginLeft:'4px'}}>de {selectedReceta.productoNombre}</span>
                     </div>
                   </div>
@@ -238,7 +256,7 @@ function Elaboraciones() {
                   <textarea className="form-control" rows="2" placeholder="Notas opcionales..." value={obs} onChange={e => setObs(e.target.value)} />
                 </div>
 
-                <button className="btn btn-success btn-full" onClick={registrar}><Icon d={icons.check} /> Registrar Elaboración</button>
+                <button className="btn btn-success btn-full" onClick={registrar} disabled={registrando}><Icon d={icons.check} /> {registrando ? 'Registrando...' : 'Registrar Elaboración'}</button>
               </div>
             </div>
 
@@ -254,7 +272,9 @@ function Elaboraciones() {
                 </select>
               </div>
               <div>
-                {histFiltrado.length === 0 ? (
+                {cargando ? (
+                  <Cargando mensaje="Cargando elaboraciones..." compacto />
+                ) : histFiltrado.length === 0 ? (
                   <div className="empty-hist"><div className="icon"><Icon d={icons.chef} style={{width:32, height:32}} /></div>Sin resultados</div>
                 ) : histFiltrado.map(e => (
                   <div key={e.id} className="elab-card" onClick={() => setModal(e)}>
@@ -282,10 +302,7 @@ function Elaboraciones() {
       </div>
 
       {modal && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModal(null)}><Icon d={icons.x} /></button>
-            <h2>{modal.id} — {modal.recetaNombre}</h2>
+        <Modal titulo={<>{modal.id} — {modal.recetaNombre}</>} onCerrar={() => setModal(null)}>
             <div className="modal-meta" style={{display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.calendar} style={{width:14, height:14}} /> {modal.fecha?.toString().replace('T', ' ').slice(0, 16)} &nbsp;·&nbsp; <Icon d={icons.repeat} style={{width:14, height:14}} /> x{modal.cantidad}</div>
             <div className="section-title">Ingredientes consumidos</div>
             <table className="detail-table">
@@ -304,11 +321,10 @@ function Elaboraciones() {
               </tbody>
             </table>
             {modal.obs && <div style={{marginTop:'12px', fontSize:'.82rem', color:'var(--muted)', display:'flex', alignItems:'center', gap:'6px'}}><Icon d={icons.edit} style={{width:14, height:14}} /> {modal.obs}</div>}
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      <Toast toast={toast} />
     </div>
   )
 }

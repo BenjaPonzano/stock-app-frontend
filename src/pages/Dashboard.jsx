@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import { getVentas, getCompras, getElaboraciones, getProductos, getIngredientes } from '../services/api'
 import { useSucursal } from '../contexts/SucursalContext'
+import { claveDia, aFecha } from '../utils/fechas'
+import Icon from '../components/Icon'
+import SelectorSucursal from '../components/SelectorSucursal'
+import Cargando from '../components/Cargando'
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -24,6 +25,7 @@ const icons = {
 function Dashboard() {
   const [ventasHoy, setVentasHoy] = useState(0)
   const [ventasSub, setVentasSub] = useState('Cargando...')
+  const [cargando, setCargando] = useState(true)
   const [ordenes, setOrdenes] = useState(0)
   const [comprasMes, setComprasMes] = useState(0)
   const [alertas, setAlertas] = useState(0)
@@ -33,13 +35,9 @@ function Dashboard() {
   const [actividad, setActividad] = useState([])
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
-  const getFechaLocal = () => {
-    const d = new Date()
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-    return d.toISOString().split('T')[0]
-  }
+  const getFechaLocal = () => claveDia(new Date())
 
-  useEffect(() => { cargarDatos() }, [sucursalActual])
+  useEffect(() => { setCargando(true); setVentasSub('Cargando...'); cargarDatos() }, [sucursalActual])
 
   const cargarDatos = async () => {
     try {
@@ -55,7 +53,7 @@ function Dashboard() {
       const hoy = getFechaLocal()
       const mes = hoy.slice(0, 7)
 
-      const vHoy = ventas.filter(v => v.fecha?.startsWith(hoy))
+      const vHoy = ventas.filter(v => claveDia(v.fecha) === hoy)
       setVentasHoy(vHoy.reduce((s, v) => s + v.total, 0))
       setVentasSub(vHoy.length > 0 ? 'En curso' : 'Sin ventas aún')
       setOrdenes(vHoy.length)
@@ -66,7 +64,7 @@ function Dashboard() {
       const inventario = [...productos, ...ingredientes]
       const critico = inventario.filter(i => i.stock <= i.stockMin)
       setAlertas(critico.length)
-      setStockCritico(critico.slice(0, 4))
+      setStockCritico(critico.slice(0, 5))
 
       // Chart últimos 7 días
       const dias = []
@@ -74,13 +72,13 @@ function Dashboard() {
         const d = new Date()
         d.setDate(d.getDate() - i)
         dias.push({
-          fecha: d.toISOString().split('T')[0],
+          fecha: claveDia(d),
           label: d.toLocaleDateString('es-AR', { weekday: 'short' }),
           total: 0
         })
       }
       ventas.forEach(v => {
-        const dia = dias.find(d => d.fecha === v.fecha?.split('T')[0])
+        const dia = dias.find(d => d.fecha === claveDia(v.fecha))
         if (dia) dia.total += v.total
       })
       setChartDias(dias)
@@ -100,13 +98,15 @@ function Dashboard() {
       let act = []
       ventas.forEach(v => act.push({ fechaObj: new Date(v.fecha), texto: `Venta registrada (${v.id})`, sub: `Total: $${v.total?.toLocaleString()}`, iconKey: 'money', color: 'var(--success)' }))
       elaboraciones.forEach(e => act.push({ fechaObj: new Date(e.fecha), texto: `Elaboración: ${e.recetaNombre}`, iconKey: 'chef', color: 'var(--primary)' }))
-      compras.forEach(c => act.push({ fechaObj: new Date(c.fecha), texto: `Ingreso mercadería`, sub: `Prov: ${c.proveedor}`, iconKey: 'cart', color: 'var(--info)' }))
+      compras.forEach(c => act.push({ fechaObj: aFecha(c.fecha), texto: `Ingreso mercadería`, sub: `Prov: ${c.proveedor}`, iconKey: 'cart', color: 'var(--info)' }))
       act.sort((a, b) => b.fechaObj - a.fechaObj)
       setActividad(act.slice(0, 4))
 
     } catch (error) {
       console.error('Error:', error)
       setVentasSub('Error de conexión')
+    } finally {
+      setCargando(false)
     }
   }
 
@@ -120,20 +120,7 @@ function Dashboard() {
       <div className="main">
         <div className="topbar">
           <h1><Icon d={icons.dashboard} style={{color:'var(--primary)', width:'22px', height:'22px'}} /> Panel General</h1>
-          {esAdmin ? (
-            <div className="sucursal-select-wrap">
-              <Icon d={icons.store} />
-              <select
-                className="sucursal-badge"
-                value={sucursalActual || ''}
-                onChange={e => cambiarSucursal(+e.target.value)}
-              >
-              {sucursales.map(s => <option key={s.id} value={s.id}>🏪 {s.nombre}</option>)}
-              </select>
-            </div>
-          ) : (
-            <div className="sucursal-badge"><Icon d={icons.store} style={{width:'13px', height:'13px'}} /> {sucursales.find(s => s.id === sucursalActual)?.nombre || 'Sin sucursal'}</div>
-          )}
+          <SelectorSucursal sucursales={sucursales} valor={sucursalActual} onChange={cambiarSucursal} editable={esAdmin} />
         </div>
         <div className="content">
 
@@ -177,6 +164,7 @@ function Dashboard() {
               <div className="panel">
                 <div className="panel-header"><Icon d={icons.chart} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Ventas (Últimos 7 días)</h2></div>
                 <div className="panel-body">
+                  {cargando ? <Cargando mensaje="Cargando ventas..." /> : (
                   <div className="chart-area">
                     {chartDias.map((d, i) => {
                       const height = Math.max((d.total / maxVenta) * 100, 5)
@@ -190,6 +178,7 @@ function Dashboard() {
                       )
                     })}
                   </div>
+                  )}
                   <div style={{paddingBottom: '20px'}}></div>
                 </div>
               </div>
@@ -198,7 +187,7 @@ function Dashboard() {
                 <div className="panel-header"><Icon d={icons.star} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Productos Más Vendidos</h2></div>
                 <div className="panel-body">
                   <div className="top-list">
-                    {topProductos.length > 0 ? topProductos.map((item, i) => (
+                    {cargando ? <Cargando compacto /> : topProductos.length > 0 ? topProductos.map((item, i) => (
                       <div className="top-item" key={i}>
                         <div className="top-rank" style={{color: rankColors[i]}}>{i + 1}</div>
                         <div className="top-details">
@@ -220,7 +209,7 @@ function Dashboard() {
                 <div className="panel-header"><Icon d={icons.alert} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Stock Crítico</h2></div>
                 <div className="panel-body">
                   <div className="alert-list">
-                    {stockCritico.length > 0 ? stockCritico.map((item, i) => (
+                    {cargando ? <Cargando compacto /> : stockCritico.length > 0 ? stockCritico.map((item, i) => (
                       <div className={`alert-item ${item.stock === 0 ? 'danger' : ''}`} key={i}>
                         <div className="alert-content">
                           <h4>{item.nombre}</h4>
@@ -228,6 +217,7 @@ function Dashboard() {
                         </div>
                       </div>
                     )) : <div className="empty-state" style={{color:'var(--success)', display:'flex', alignItems:'center', gap:'6px', justifyContent:'center'}}><Icon d={icons.check} style={{width:'16px', height:'16px'}} /> Todo el inventario está en niveles óptimos.</div>}
+                    {alertas > stockCritico.length && <p style={{textAlign:'center', color:'var(--muted)', fontSize:'.8rem', margin:'8px 0 0'}}>y {alertas - stockCritico.length} más (ver Reportes)</p>}
                   </div>
                 </div>
               </div>
@@ -236,7 +226,7 @@ function Dashboard() {
                 <div className="panel-header"><Icon d={icons.refresh} style={{color:'var(--primary)', width:'18px', height:'18px'}} /><h2>Actividad Reciente</h2></div>
                 <div className="panel-body">
                   <div className="activity-list">
-                    {actividad.length > 0 ? actividad.map((a, i) => (
+                    {cargando ? <Cargando compacto /> : actividad.length > 0 ? actividad.map((a, i) => (
                       <div className="activity-item" key={i}>
                         <div className="activity-icon" style={{color: a.color, borderColor: a.color}}><Icon d={icons[a.iconKey]} style={{width:'15px', height:'15px'}} /></div>
                         <div className="activity-details">

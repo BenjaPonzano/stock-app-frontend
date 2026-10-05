@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { API } from '../services/api'
+import { API, mensajeError } from '../services/api'
+import Icon from '../components/Icon'
+import SucursalModelo from '../models/Sucursal'
+import Toast from '../components/Toast'
+import Modal from '../components/Modal'
+import Cargando from '../components/Cargando'
+import ConfirmarModal from '../components/ConfirmarModal'
+import StatCard from '../components/StatCard'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
-const Icon = ({ d, ...props }) => (
-  <svg className="icn" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} {...props} />
-)
 
 const icons = {
   store: '<path d="M3 9l1-5h16l1 5"/><path d="M3 9v11h18V9"/><path d="M9 20v-6h6v6"/>',
@@ -28,6 +32,9 @@ function Sucursales() {
   const [form, setForm] = useState({})
   const [status, setStatus] = useState(true)
   const [toast, setToast] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  const [aEliminar, setAEliminar] = useState(null)
 
   useEffect(() => { cargarDatos() }, [])
 
@@ -37,8 +44,15 @@ function Sucursales() {
   }
 
   const cargarDatos = async () => {
-    const res = await fetch(`${API}/sucursales`, { headers: headers() })
-    setSucursales(await res.json())
+    try {
+      const res = await fetch(`${API}/sucursales`, { headers: headers() })
+      const datos = await res.json()
+      setSucursales(Array.isArray(datos) ? datos.map(SucursalModelo.desdeApi) : [])
+    } catch (e) {
+      showToast('No se pudo conectar con el servidor', 'error')
+    } finally {
+      setCargando(false)
+    }
   }
 
   const filtered = sucursales.filter(s =>
@@ -63,15 +77,23 @@ function Sucursales() {
     if (!form.nombre) return showToast('El nombre es obligatorio', 'error')
     const obj = { ...form, activa: status }
     const url = `${API}/sucursales${editingId ? '/' + editingId : ''}`
-    await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    const res = await fetch(url, { method: editingId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json', ...headers() }, body: JSON.stringify(obj) })
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast(editingId ? 'Actualizada ✓' : 'Creada ✓', 'success')
     setModalOpen(false)
     cargarDatos()
   }
 
+  const guardarSeguro = async () => {
+    if (guardando) return
+    setGuardando(true)
+    try { await guardar() } finally { setGuardando(false) }
+  }
+
   const eliminar = async (id) => {
-    if (!window.confirm('¿Eliminar sucursal?')) return
-    await fetch(`${API}/sucursales/${id}`, { method: 'DELETE', headers: headers() })
+    const res = await fetch(`${API}/sucursales/${id}`, { method: 'DELETE', headers: headers() })
+    setAEliminar(null)
+    if (!res.ok) return showToast(await mensajeError(res), 'error')
     showToast('Eliminada', 'error')
     cargarDatos()
   }
@@ -87,9 +109,9 @@ function Sucursales() {
         <div className="content">
 
           <div className="stats">
-            <div className="stat-card"><div className="stat-label">Total Sucursales</div><div className="stat-value" style={{color:'var(--primary)'}}>{stats.total}</div></div>
-            <div className="stat-card"><div className="stat-label">Operativas</div><div className="stat-value" style={{color:'var(--success)'}}>{stats.activas}</div></div>
-            <div className="stat-card"><div className="stat-label">Inactivas</div><div className="stat-value" style={{color:'var(--muted)'}}>{stats.inactivas}</div></div>
+            <StatCard etiqueta="Total Sucursales" valor={stats.total} color="var(--primary)" />
+            <StatCard etiqueta="Operativas" valor={stats.activas} color="var(--success)" />
+            <StatCard etiqueta="Inactivas" valor={stats.inactivas} color="var(--muted)" />
           </div>
 
           <div className="toolbar">
@@ -108,7 +130,9 @@ function Sucursales() {
                 <tr><th>Sucursal</th><th>Contacto</th><th>Encargado</th><th>Estado</th><th>Acciones</th></tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {cargando ? (
+                  <tr><td colSpan="5"><Cargando mensaje="Cargando sucursales..." /></td></tr>
+                ) : filtered.length === 0 ? (
                   <tr><td colSpan="5"><div className="empty-state">No se encontraron sucursales</div></td></tr>
                 ) : filtered.map(s => (
                   <tr key={s.id}>
@@ -118,11 +142,11 @@ function Sucursales() {
                     </td>
                     <td><span className="cell-icon"><Icon d={icons.phone} style={{width:13, height:13}} /> {s.telefono || '-'}</span></td>
                     <td><span className="cell-icon"><Icon d={icons.user} style={{width:13, height:13}} /> {s.encargado || '-'}</span></td>
-                    <td><span className={`badge ${s.activa ? 'badge-active' : 'badge-inactive'}`}>{s.activa ? <><Icon d={icons.check} /> Operativa</> : <><Icon d={icons.x} /> Inactiva</>}</span></td>
+                    <td><span className={`badge ${s.activa ? 'badge-active' : 'badge-inactive'}`}>{s.activa ? <><Icon d={icons.check} /> {s.estadoTexto}</> : <><Icon d={icons.x} /> Inactiva</>}</span></td>
                     <td>
                       <div className="actions">
                         <button className="btn btn-ghost btn-sm" onClick={() => openModal(s)}><Icon d={icons.edit} style={{width:13, height:13}} /> Editar</button>
-                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => eliminar(s.id)}><Icon d={icons.trash} /></button>
+                        <button className="btn btn-sm" style={{background:'#fadbd8', color:'#c0392b'}} onClick={() => setAEliminar({ id: s.id, nombre: s.nombre })}><Icon d={icons.trash} /></button>
                       </div>
                     </td>
                   </tr>
@@ -134,10 +158,7 @@ function Sucursales() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay open">
-          <div className="modal">
-            <button className="modal-close" onClick={() => setModalOpen(false)}><Icon d={icons.x} /></button>
-            <h2>{editingId ? 'Editar Sucursal' : 'Nueva Sucursal'}</h2>
+        <Modal titulo={editingId ? 'Editar Sucursal' : 'Nueva Sucursal'} onCerrar={() => setModalOpen(false)}>
             <div className="form-group"><label>Nombre de la Sucursal</label><input className="form-control" value={form.nombre || ''} onChange={e => setForm({...form, nombre: e.target.value})} /></div>
             <div className="form-group"><label>Dirección</label><input className="form-control" value={form.direccion || ''} onChange={e => setForm({...form, direccion: e.target.value})} /></div>
             <div className="form-row">
@@ -153,13 +174,21 @@ function Sucursales() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button className="btn btn-primary" onClick={guardar}>Guardar Sucursal</button>
+              <button className="btn btn-primary" onClick={guardarSeguro} disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar Sucursal'}</button>
             </div>
-          </div>
-        </div>
+          </Modal>
       )}
 
-      {toast && <div className={`toast ${toast.type} show`}>{toast.msg}</div>}
+      {aEliminar && (
+        <ConfirmarModal
+          titulo="Eliminar sucursal"
+          mensaje={<>¿Seguro que querés eliminar la sucursal <strong>{aEliminar.nombre}</strong>? Esta acción no se puede deshacer. Si tiene usuarios o movimientos asociados, el sistema no te va a dejar eliminarla.</>}
+          onConfirmar={() => eliminar(aEliminar.id)}
+          onCancelar={() => setAEliminar(null)}
+        />
+      )}
+
+      <Toast toast={toast} />
     </div>
   )
 }

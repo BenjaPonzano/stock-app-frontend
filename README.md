@@ -1,7 +1,8 @@
 # stock-app-frontend
 
-Frontend - Sistema de stock TP DSW. App en React (Create React App) que consume
-la API de [stock-app-backend](https://github.com/BenjaPonzano/stock-app-backend).
+Frontend del sistema **StockGastro** (TP de Desarrollo de Software): control de stock para un
+local de comida con varias sucursales. Hecho con **React** (Create React App) y **React Router**;
+consume la API de [stock-app-backend](https://github.com/BenjaPonzano/stock-app-backend).
 
 ## Puesta en marcha
 
@@ -11,90 +12,62 @@ npm start
 ```
 
 Queda en `http://localhost:3000`. **El backend tiene que estar corriendo en
-`http://localhost:3001`**, si no el login y todas las pantallas fallan.
+`http://localhost:3001`**; si no, el login y todas las pantallas fallan.
 
-Si hace falta apuntar a otra URL, copiar `.env.example` como `.env` y cambiar
-`REACT_APP_API_URL`. La URL vive en un solo lugar: `src/services/api.js`.
+Si el backend está en otra dirección, copiar `.env.example` como `.env` y cambiar
+`REACT_APP_API_URL` (hay que reiniciar `npm start` después de cambiarla).
+Create React App solo lee variables que empiezan con `REACT_APP_`.
+
+## Scripts
+
+| Comando | Qué hace |
+|---|---|
+| `npm start` | Servidor de desarrollo con recarga automática. |
+| `npm test` | Corre los tests (Jest + React Testing Library). |
+| `npm run build` | Genera la versión optimizada para producción en `build/`. |
 
 ## Estructura
 
-- `src/pages/` - una pantalla por ruta
-- `src/components/` - componentes compartidos (Sidebar)
-- `src/services/api.js` - URL base del backend y llamados compartidos
-- `src/services/auth.js` - login, logout y lectura del token de localStorage
-- `public/CSS/style.css` - estilos globales, linkeados desde `public/index.html`
+```
+src/
+├── pages/        Una pantalla por ruta (Login, Dashboard, Ventas, Recetas, etc.)
+├── components/   Piezas reutilizables con props de entrada y de salida
+│   ├── Sidebar          Menú lateral (se vuelve un panel deslizable en celular y tablet)
+│   ├── SelectorSucursal Entrada: sucursales, valor, editable · Salida: onChange(id)
+│   ├── Modal            Entrada: titulo, ancho, children · Salida: onCerrar()
+│   ├── StatCard         Entrada: etiqueta, valor, color
+│   ├── Toast            Entrada: toast { msg, type }
+│   └── Icon             Entrada: d (contenido SVG)
+├── models/       Clases que representan los datos: Producto, Ingrediente, Sucursal, Usuario
+├── services/     api.js (URL base, llamados y lectura de errores) y auth.js (login/logout)
+├── contexts/     SucursalContext: sucursal elegida, compartida por todas las pantallas
+└── utils/        fechas.js (fechas en hora local, sin el desfase de UTC)
+public/CSS/style.css   Estilos globales
+```
 
-Las rutas y quien puede entrar a cada una estan definidas en `src/App.js`.
+## Acceso por rol
 
----
+El login guarda el token y el rol. `src/App.js` define las rutas y cuáles son solo para admin
+(`PrivateRoute adminOnly`); un vendedor que escribe a mano una URL de admin vuelve a `/ventas`.
+El backend vuelve a validar el rol en cada pedido, así que ocultar botones es una comodidad
+de la interfaz y no la única barrera.
 
-## Getting Started with Create React App
+## Diseño responsive
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Los estilos se escribieron **mobile-first**: lo que está arriba en `style.css` es la base para
+celulares y se amplía con `min-width`.
 
-## Available Scripts
+| Tamaño | Ancho | Qué cambia |
+|---|---|---|
+| SM (celular) | menos de 768 px | Una sola columna, menú lateral oculto con botón hamburguesa, tablas con scroll horizontal. |
+| MD (tablet) | desde 768 px | Formularios en dos columnas, panel principal del dashboard en dos columnas, catálogo en tres. |
+| LG (escritorio) | desde 1024 px | Menú lateral fijo, paneles de dos columnas (contenido + ticket / formulario). |
 
-In the project directory, you can run:
+## Tests
 
-### `npm start`
+```bash
+npm test
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
-
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Hay tests unitarios de componentes (`Modal`, `SelectorSucursal`), de los modelos (`Producto`)
+y de utilidades (`fechas`).
