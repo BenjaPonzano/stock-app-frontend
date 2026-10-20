@@ -84,10 +84,12 @@ function Dashboard() {
       setChartDias(dias)
 
       // Top productos
+      // El back manda el nombre en cada ítem; si faltara, se busca en el catálogo de productos.
       const ranking = {}
       ventas.forEach(v => v.items?.forEach(item => {
-        if (!ranking[item.nombre]) ranking[item.nombre] = { cant: 0 }
-        ranking[item.nombre].cant += item.cant
+        const nombre = item.nombre || productos.find(p => p.id === item.idProducto)?.nombre || `Producto #${item.idProducto}`
+        if (!ranking[nombre]) ranking[nombre] = { cant: 0 }
+        ranking[nombre].cant += item.cant
       }))
       const top = Object.entries(ranking)
         .map(([nombre, d]) => ({ nombre, cant: d.cant }))
@@ -96,7 +98,7 @@ function Dashboard() {
 
       // Actividad
       let act = []
-      ventas.forEach(v => act.push({ fechaObj: new Date(v.fecha), texto: `Venta registrada (${v.id})`, sub: `Total: $${v.total?.toLocaleString()}`, iconKey: 'money', color: 'var(--success)' }))
+      ventas.forEach(v => act.push({ fechaObj: new Date(v.fecha), texto: `Venta registrada (V-${String(v.idCompra).padStart(4, '0')})`, sub: `Total: $${v.total?.toLocaleString()}`, iconKey: 'money', color: 'var(--success)' }))
       elaboraciones.forEach(e => act.push({ fechaObj: new Date(e.fecha), texto: `Elaboración: ${e.recetaNombre}`, iconKey: 'chef', color: 'var(--primary)' }))
       compras.forEach(c => act.push({ fechaObj: aFecha(c.fecha), texto: `Ingreso mercadería`, sub: `Prov: ${c.proveedor}`, iconKey: 'cart', color: 'var(--info)' }))
       act.sort((a, b) => b.fechaObj - a.fechaObj)
