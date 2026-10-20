@@ -182,7 +182,7 @@ function Sucursales() {
       {aEliminar && (
         <ConfirmarModal
           titulo="Eliminar sucursal"
-          mensaje={<>¿Seguro que querés eliminar la sucursal <strong>{aEliminar.nombre}</strong>? Esta acción no se puede deshacer. Si tiene usuarios o movimientos asociados, el sistema no te va a dejar eliminarla.</>}
+          mensaje={<>¿Seguro que querés eliminar la sucursal <strong>{aEliminar.nombre}</strong>? Va a dejar de aparecer en el sistema y sus vendedores no van a poder entrar. Las ventas y compras que ya tiene se conservan.</>}
           onConfirmar={() => eliminar(aEliminar.id)}
           onCancelar={() => setAEliminar(null)}
         />
