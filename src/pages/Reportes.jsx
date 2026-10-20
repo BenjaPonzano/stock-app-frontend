@@ -7,6 +7,7 @@ import Icon from '../components/Icon'
 import Toast from '../components/Toast'
 import SelectorSucursal from '../components/SelectorSucursal'
 import Cargando from '../components/Cargando'
+import Modal from '../components/Modal'
 
 const headers = () => ({ Authorization: 'Bearer ' + localStorage.getItem('token') })
 
@@ -32,6 +33,8 @@ function Reportes() {
   const [r3Search, setR3Search] = useState('')
   const [r3Pago, setR3Pago] = useState('')
   const [r3Fecha, setR3Fecha] = useState('')
+  const [r3Vendedor, setR3Vendedor] = useState('')
+  const [ventaDetalle, setVentaDetalle] = useState(null)
   const [r4Search, setR4Search] = useState('')
   const [r4Fecha, setR4Fecha] = useState('')
   const [toast, setToast] = useState('')
@@ -103,12 +106,17 @@ function Reportes() {
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
   // Rep 3 - Ventas
+  const vendedores = [...new Set(ventas.map(v => v.vendedor).filter(Boolean))].sort()
   const rep3 = ventas.filter(v => {
     const idStr = 'V-' + String(v.idCompra).padStart(4, '0')
-    const matchSearch = !r3Search || idStr.toLowerCase().includes(r3Search.toLowerCase())
+    const q = r3Search.toLowerCase()
+    const matchSearch = !q || idStr.toLowerCase().includes(q) ||
+      v.vendedor?.toLowerCase().includes(q) ||
+      (v.items || []).some(it => it.nombre?.toLowerCase().includes(q))
     const matchPago = !r3Pago || v.tipoPago === r3Pago
     const matchDate = !r3Fecha || claveDia(v.fecha).startsWith(r3Fecha)
-    return matchSearch && matchPago && matchDate
+    const matchVendedor = !r3Vendedor || v.vendedor === r3Vendedor
+    return matchSearch && matchPago && matchDate && matchVendedor
   }).sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
 
   // Rep 4 - Elaboraciones
@@ -217,7 +225,7 @@ function Reportes() {
               <div className="toolbar">
                 <div className="search-wrap">
                   <Icon d={icons.search} />
-                  <input className="search-box" placeholder="Buscar por Nº Venta..." value={r3Search} onChange={e => setR3Search(e.target.value)} />
+                  <input className="search-box" placeholder="Buscar por Nº, vendedor o producto..." value={r3Search} onChange={e => setR3Search(e.target.value)} />
                 </div>
                 <select className="filter-select" value={r3Pago} onChange={e => setR3Pago(e.target.value)}>
                   <option value="">Todos los métodos</option>
@@ -226,26 +234,31 @@ function Reportes() {
                   <option value="td">Tarjeta Débito</option>
                   <option value="tc">Tarjeta Crédito</option>
                 </select>
+                <select className="filter-select" value={r3Vendedor} onChange={e => setR3Vendedor(e.target.value)}>
+                  <option value="">Todos los vendedores</option>
+                  {vendedores.map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
                 <input type="month" className="filter-select" value={r3Fecha} onChange={e => setR3Fecha(e.target.value)} />
               </div>
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Ítems</th><th>Forzada</th></tr></thead>
+                  <thead><tr><th>Nº Venta</th><th>Fecha y Hora</th><th>Vendedor</th><th>Método de Pago</th><th>Descuento</th><th>Total</th><th>Productos</th><th>Forzada</th></tr></thead>
                   <tbody>
                     {cargando ? (
-                      <tr><td colSpan="7"><Cargando compacto /></td></tr>
+                      <tr><td colSpan="8"><Cargando compacto /></td></tr>
                     ) : rep3.length === 0 ? (
-                      <tr><td colSpan="7"><div className="empty-state">No hay ventas registradas</div></td></tr>
+                      <tr><td colSpan="8"><div className="empty-state">No hay ventas registradas</div></td></tr>
                     ) : rep3.map((v, i) => {
                       const idStr = 'V-' + String(v.idCompra).padStart(4, '0')
                       return (
-                        <tr key={i}>
+                        <tr key={i} className="fila-clickable" title="Ver detalle" onClick={() => setVentaDetalle(v)}>
                           <td style={{fontWeight:700, color:'var(--primary)'}}>{idStr}</td>
                           <td>{formatFechaHora(v.fecha)}</td>
+                          <td>{v.vendedor || '-'}</td>
                           <td><span className="badge badge-primary">{pagoLabels[v.tipoPago] || v.tipoPago || '-'}</span></td>
                           <td>{v.descuento > 0 ? `${v.descuento}%` : '-'}</td>
                           <td><strong>${v.total?.toLocaleString()}</strong></td>
-                          <td>{(v.items || []).length} ítem(s)</td>
+                          <td style={{color:'var(--muted)'}}>{(v.items || []).map(it => `${it.nombre || 'Producto ' + it.idProducto} ×${it.cant}`).join(', ')}</td>
                           <td>{v.forzada ? <span className="badge badge-warning"><Icon d={icons.alert} /> Forzada</span> : '-'}</td>
                         </tr>
                       )
@@ -294,6 +307,32 @@ function Reportes() {
 
         </div>
       </div>
+      {ventaDetalle && (
+        <Modal titulo={'Venta V-' + String(ventaDetalle.idCompra).padStart(4, '0')} ancho="560px" onCerrar={() => setVentaDetalle(null)}>
+          <div className="modal-meta">
+            {formatFechaHora(ventaDetalle.fecha)} · Vendedor: {ventaDetalle.vendedor || '-'} · {pagoLabels[ventaDetalle.tipoPago] || ventaDetalle.tipoPago || '-'}
+            {ventaDetalle.forzada ? ' · Forzada' : ''}
+          </div>
+          <table className="detail-table">
+            <thead><tr><th>Producto</th><th>Cant.</th><th>Precio unit.</th><th>Subtotal</th></tr></thead>
+            <tbody>
+              {(ventaDetalle.items || []).map(it => (
+                <tr key={it.idProducto}>
+                  <td>{it.emoji} {it.nombre || `Producto ${it.idProducto}`}</td>
+                  <td>{it.cant}</td>
+                  <td>${it.precioUnitario?.toLocaleString()}</td>
+                  <td>${(it.cant * it.precioUnitario).toLocaleString()}</td>
+                </tr>
+              ))}
+              {ventaDetalle.descuento > 0 && <tr><th colSpan="3">Descuento</th><td>{ventaDetalle.descuento}%</td></tr>}
+              <tr><th colSpan="3">Total</th><td><strong>${ventaDetalle.total?.toLocaleString()}</strong></td></tr>
+            </tbody>
+          </table>
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setVentaDetalle(null)}>Cerrar</button>
+          </div>
+        </Modal>
+      )}
       <Toast toast={toast} />
     </div>
   )
