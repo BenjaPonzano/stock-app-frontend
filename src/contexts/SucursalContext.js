@@ -31,8 +31,11 @@ export function SucursalProvider({ children }) {
         const activas = data.filter(s => s.activa)
         setSucursales(activas)
         if (esAdmin) {
-          const guardada = localStorage.getItem('idSucursal')
-          if (!guardada && activas.length > 0) cambiarSucursal(activas[0].id)
+          // Si la sucursal guardada ya no existe (se eliminó o se reinició la base),
+          // se elige la primera activa; si no, las pantallas quedarían vacías.
+          const guardada = +localStorage.getItem('idSucursal')
+          const sigueActiva = activas.some(s => s.id === guardada)
+          if (!sigueActiva && activas.length > 0) cambiarSucursal(activas[0].id)
         }
       })
   }
