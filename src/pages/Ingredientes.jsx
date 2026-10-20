@@ -38,6 +38,7 @@ function Ingredientes() {
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [aEliminar, setAEliminar] = useState(null)
+  const [detalle, setDetalle] = useState(null)
   const { sucursalActual, sucursales, cambiarSucursal, esAdmin } = useSucursal()
 
 
@@ -187,7 +188,7 @@ function Ingredientes() {
                   const pct = item.stockMin > 0 ? Math.min(100, Math.round(item.stock / (item.stockMin * 2) * 100)) : 100
                   const color = item.stock === 0 ? '#e74c3c' : item.stock < item.stockMin ? '#f39c12' : '#27ae60'
                   return (
-                    <tr key={item.id}>
+                    <tr key={item.id} className="fila-clickable" title="Ver detalle" onClick={() => setDetalle(item)}>
                       <td><strong>{item.nombre}</strong></td>
                       {isP && (
                         <td>
@@ -224,6 +225,38 @@ function Ingredientes() {
           </div>
         </div>
       </div>
+
+      {detalle && (
+        <Modal titulo={<>{detalle.emoji} {detalle.nombre}</>} onCerrar={() => setDetalle(null)}>
+          <div className="modal-meta">
+            {isP ? `Producto · ${detalle.etiquetaOrigen}` : 'Ingrediente'}
+            {detalle.descripcion ? ` · ${detalle.descripcion}` : ''}
+          </div>
+          <table className="detail-table">
+            <tbody>
+              <tr><th>Stock actual</th><td>{detalle.stock} {detalle.unidad}</td></tr>
+              <tr><th>Stock mínimo</th><td>{detalle.stockMin} {detalle.unidad}</td></tr>
+              <tr><th>Estado</th><td>{{ ok: 'Normal', low: 'Bajo el mínimo', out: 'Sin stock' }[detalle.estadoStock]}</td></tr>
+              {isP ? (
+                <>
+                  <tr><th>Precio de venta</th><td>${detalle.precioVenta?.toLocaleString()}</td></tr>
+                  <tr><th>Precio de compra</th><td>${detalle.precioCompra?.toLocaleString()}</td></tr>
+                  <tr><th>Valor del stock (a precio de venta)</th><td>${(detalle.stock * detalle.precioVenta).toLocaleString()}</td></tr>
+                </>
+              ) : (
+                <>
+                  <tr><th>Precio</th><td>${detalle.precio?.toLocaleString()} / {detalle.unidad}</td></tr>
+                  <tr><th>Valor del stock</th><td>${(detalle.stock * detalle.precio).toLocaleString()}</td></tr>
+                </>
+              )}
+            </tbody>
+          </table>
+          <div className="modal-footer">
+            <button className="btn btn-ghost" onClick={() => setDetalle(null)}>Cerrar</button>
+            <button className="btn btn-primary" onClick={() => { const item = detalle; setDetalle(null); openModal(item) }}>Editar</button>
+          </div>
+        </Modal>
+      )}
 
       {modalOpen && (
         <Modal titulo={editingId ? 'Editar' : 'Nuevo'} onCerrar={() => setModalOpen(false)}>
